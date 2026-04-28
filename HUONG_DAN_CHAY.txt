@@ -1,0 +1,112 @@
+================================================================================
+  HƯỚNG DẪN CHẠY HỆ THỐNG BVAB EVAL (từ lúc bật máy)
+  Thư mục project:
+  D:\Documents\Work\OSAS\2. AI\1. BVAB\2026_Automation\2026_03_Auto_Evaluation
+================================================================================
+
+--- MỘT LẦN (đã làm rồi thì bỏ qua) ---
+
+1) Cài PostgreSQL trên Windows, tạo database tên: bvab
+
+2) Trong thư mục "server", tạo file .env (copy từ .env.example nếu có) và điền:
+
+DATABASE_URL=postgresql://postgres:MẬT_KHẨU_CỦA_BẠN@127.0.0.1:5432/bvab
+JWT_SECRET=chuỗi-bí-mật-dài-ngẫu-nhiên
+
+Nếu dùng "Forward n8n via API" (tránh CORS), thêm dòng:
+N8N_UPSTREAM_URL=http://ĐỊA_CHỈ_N8N_CỦA_BẠN
+
+3) Cài thư viện API (PowerShell):
+
+cd "D:\Documents\Work\OSAS\2. AI\1. BVAB\2026_Automation\2026_03_Auto_Evaluation\server"
+pip install -r requirements.txt
+
+
+================================================================================
+  MỖI NGÀY — SAU KHI BẬT MÁY
+================================================================================
+
+--- Bước A: Postgres (nếu chưa chạy) ---
+
+Mở services.msc → tìm PostgreSQL → Start nếu đang Stopped.
+
+
+--- Bước B: Terminal 1 — chạy API (giữ cửa sổ mở) ---
+
+cd "D:\Documents\Work\OSAS\2. AI\1. BVAB\2026_Automation\2026_03_Auto_Evaluation\server"
+uvicorn main:app --reload --port 8787
+
+Đợi đến khi thấy log kiểu: Uvicorn running on http://127.0.0.1:8787
+
+
+--- Bước C: Terminal 2 — chạy web tĩnh (giữ cửa sổ mở) ---
+
+cd "D:\Documents\Work\OSAS\2. AI\1. BVAB\2026_Automation\2026_03_Auto_Evaluation"
+python -m http.server 8080
+
+
+--- Bước D: Trình duyệt ---
+
+Mở trang app:
+
+http://127.0.0.1:8080/index.html
+
+(Lưu ý: KHÔNG mở index.html bằng double-click / file:// nếu muốn gọi API từ trình duyệt.)
+
+Kiểm tra API sống:
+
+http://127.0.0.1:8787/health
+
+Kỳ vọng: {"ok":true}
+
+
+--- Bước E: Trong app (Setup) ---
+
+1) Eval API base URL = http://127.0.0.1:8787 → Save settings
+2) Điền n8n base URL + webhook path đúng môi trường
+3) Nếu không sửa được CORS trên n8n:
+   - Bật "Forward n8n via API"
+   - Đảm bảo N8N_UPSTREAM_URL trong server\.env trùng base n8n
+   - Restart uvicorn (tắt Terminal 1 rồi chạy lại lệnh uvicorn)
+   → Save settings → Test connection
+4) (Tùy chọn) Cloud sync: Create account / Sign in để lưu lên Postgres
+
+
+================================================================================
+  COPY–PASTE NHANH (2 terminal)
+================================================================================
+
+Terminal 1:
+
+cd "D:\Documents\Work\OSAS\2. AI\1. BVAB\2026_Automation\2026_03_Auto_Evaluation\server"
+uvicorn main:app --reload --port 8787
+
+Terminal 2:
+
+cd "D:\Documents\Work\OSAS\2. AI\1. BVAB\2026_Automation\2026_03_Auto_Evaluation"
+python -m http.server 8080
+
+Trình duyệt:
+
+http://127.0.0.1:8080/index.html
+
+
+================================================================================
+  Tắt khi xong
+================================================================================
+
+Mỗi terminal: nhấn Ctrl+C để dừng server.
+
+
+================================================================================
+  Lỗi thường gặp
+================================================================================
+
+- python / pip không chạy: cài Python, tick Add to PATH, mở lại PowerShell.
+- API lỗi kết nối Postgres: kiểm tra DATABASE_URL, service Postgres, database bvab.
+- Web không vào: kiểm tra Terminal 2 còn chạy, đúng cổng 8080.
+- App không gọi được API: phải mở bằng http://127.0.0.1:8080/... không dùng file://
+- n8n / CORS: bật Forward n8n via API + N8N_UPSTREAM_URL + restart uvicorn.
+
+================================================================================
+Hết file.

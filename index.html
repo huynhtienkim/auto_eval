@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BVAB Eval</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0e0f11;
+  --surface: #16181c;
+  --surface2: #1e2026;
+  --border: #2a2d35;
+  --border2: #363a45;
+  --text: #e8eaf0;
+  --muted: #7a7f8e;
+  --dim: #454a58;
+  --accent: #4fffb0;
+  --accent-dim: rgba(79,255,176,0.12);
+  --accent-dim2: rgba(79,255,176,0.06);
+  --red: #ff5f57;
+  --red-dim: rgba(255,95,87,0.12);
+  --amber: #ffb340;
+  --amber-dim: rgba(255,179,64,0.12);
+  --blue: #4a9eff;
+  --blue-dim: rgba(74,158,255,0.12);
+  --purple: #b87fff;
+  --purple-dim: rgba(184,127,255,0.12);
+  --r: 8px;
+  --r-lg: 12px;
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+html[data-theme="light"] {
+  --bg: #eef0f4;
+  --surface: #ffffff;
+  --surface2: #e6e9f0;
+  --border: #d4d8e3;
+  --border2: #c2c7d4;
+  --text: #12141a;
+  --muted: #5a6172;
+  --dim: #8a91a3;
+  --accent: #00a86b;
+  --accent-dim: rgba(0,168,107,0.14);
+  --accent-dim2: rgba(0,168,107,0.08);
+  --red: #d93832;
+  --red-dim: rgba(217,56,50,0.12);
+  --amber: #c77a00;
+  --amber-dim: rgba(199,122,0,0.14);
+  --blue: #1a6fd4;
+  --blue-dim: rgba(26,111,212,0.12);
+  --purple: #7b4fd4;
+  --purple-dim: rgba(123,79,212,0.12);
+}
+
+html[data-theme="light"] .modal-bg {
+  background: rgba(18,20,28,0.45);
+}
+
+html[data-theme="light"] .btn-accent {
+  color: #fff;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: fixed;
+  left: 0; top: 0;
+}
+.sidebar-logo {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .wordmark {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--accent);
+}
+.sidebar-logo .sub {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.nav { padding: 12px 10px; flex: 1; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--r);
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  transition: color .15s, background .15s;
+  letter-spacing: .01em;
+}
+.nav-item:hover { color: var(--text); background: var(--surface2); }
+.nav-item.active { color: var(--accent); background: var(--accent-dim2); }
+.nav-item .icon { width: 16px; text-align: center; font-size: 13px; flex-shrink: 0; }
+.nav-section {
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding: 16px 10px 6px;
+}
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+.conn-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  margin-right: 6px;
+  transition: background .3s;
+}
+.conn-dot.ok { background: var(--accent); }
+.conn-status { font-size: 11px; color: var(--muted); }
+
+/* ── Main ── */
+.main {
+  margin-left: 220px;
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky; top: 0; z-index: 10;
+}
+.page-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ── Panels ── */
+.panel { display: none; padding: 28px; flex: 1; }
+.panel.active { display: block; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  margin-bottom: 14px;
+  color: var(--text);
+}
+
+/* ── Metric row ── */
+.metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 12px; margin-bottom: 20px; }
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+}
+.metric-label { font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.metric-value { font-family: var(--font-display); font-size: 28px; font-weight: 700; }
+.metric-value.green { color: var(--accent); }
+.metric-value.amber { color: var(--amber); }
+.metric-value.red { color: var(--red); }
+.metric-value.blue { color: var(--blue); }
+
+/* ── Score bars ── */
+.score-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.score-bar-label { font-size: 11px; color: var(--muted); width: 100px; flex-shrink: 0; text-align: right; }
+.score-bar-track { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 3px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+.score-bar-val { font-size: 12px; font-weight: 500; width: 28px; color: var(--text); }
+
+/* ── Table ── */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; font-weight: 400; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; line-height: 1.5; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+
+/* ── Badges ── */
+.badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-family: var(--font-mono); }
+.badge-info    { background: var(--blue-dim);   color: var(--blue); }
+.badge-booking { background: var(--accent-dim); color: var(--accent); }
+.badge-safety  { background: var(--red-dim);    color: var(--red); }
+.badge-edge    { background: var(--amber-dim);  color: var(--amber); }
+.badge-general { background: var(--surface2);   color: var(--muted); }
+.badge-pass    { background: var(--accent-dim); color: var(--accent); }
+.badge-fail    { background: var(--red-dim);    color: var(--red); }
+.badge-d1 { background: var(--accent-dim2); color: var(--accent); }
+.badge-d2 { background: var(--amber-dim);   color: var(--amber); }
+.badge-d3 { background: var(--red-dim);     color: var(--red); }
+.badge-dx { background: var(--purple-dim); color: var(--purple); }
+
+/* ── Forms ── */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; display: block; }
+input[type=text], input[type=number], input[type=url], select, textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+select option { background: var(--surface2); }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  border-radius: var(--r);
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .01em;
+}
+.btn:hover { background: var(--surface2); border-color: var(--border2); }
+.btn:active { opacity: .8; transform: scale(.98); }
+.btn-accent {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+  font-weight: 500;
+}
+.btn-accent:hover { opacity: .88; background: var(--accent); }
+.btn-danger { border-color: var(--red); color: var(--red); }
+.btn-danger:hover { background: var(--red-dim); }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Run history cards ── */
+.run-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color .15s;
+  background: var(--surface);
+}
+.run-card:hover { border-color: var(--border2); }
+.run-card.selected { border-color: var(--accent); }
+.run-card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.run-label { font-family: var(--font-display); font-size: 13px; font-weight: 600; }
+.run-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.mini-bars { display: flex; gap: 6px; margin-top: 8px; }
+.mini-bar { flex: 1; }
+.mini-bar-track { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.mini-bar-fill { height: 100%; border-radius: 2px; }
+.mini-bar-lbl { font-size: 10px; color: var(--dim); margin-top: 3px; }
+
+/* ── Code block ── */
+.code-block {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  font-size: 11px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  color: var(--muted);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+}
+.code-block .kw { color: var(--accent); }
+.code-block .str { color: var(--amber); }
+.code-block .cmt { color: var(--dim); }
+
+/* ── Toast ── */
+#toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--text);
+  z-index: 999;
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all .25s;
+  pointer-events: none;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.ok { border-color: var(--accent); color: var(--accent); }
+#toast.err { border-color: var(--red); color: var(--red); }
+
+/* ── Modal ── */
+.modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.7);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  width: 580px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  letter-spacing: -.02em;
+}
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ── Setup panel ── */
+.step-row {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.step-row:last-child { border-bottom: none; }
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--muted);
+  flex-shrink: 0; margin-top: 2px;
+}
+.step-num.done { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.step-content { flex: 1; }
+.step-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; font-family: var(--font-display); }
+.step-desc { font-size: 11px; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
+
+/* ── Loading spinner ── */
+.spinner {
+  width: 14px; height: 14px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Tabs ── */
+.tab-row { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.tab {
+  padding: 8px 18px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: .04em;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  text-transform: uppercase;
+  transition: color .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Result detail ── */
+.result-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.result-row:last-child { border-bottom: none; }
+.result-q { font-size: 13px; margin-bottom: 6px; }
+.result-answer { font-size: 11px; color: var(--muted); background: var(--surface2); padding: 8px 10px; border-radius: var(--r); margin-bottom: 8px; line-height: 1.6; }
+.result-scores { display: flex; gap: 10px; flex-wrap: wrap; }
+.score-chip {
+  font-size: 10px; padding: 3px 8px; border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+.score-chip.hi { border-color: var(--accent); color: var(--accent); }
+.score-chip.mid { border-color: var(--amber); color: var(--amber); }
+.score-chip.lo  { border-color: var(--red);   color: var(--red); }
+
+/* ── Empty state ── */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.empty-icon { font-size: 32px; margin-bottom: 12px; opacity: .4; }
+
+/* ── Divider ── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* ── Animations ── */
+@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+.panel.active { animation: fadeIn .2s ease; }
+
+/* ── Settings: theme toggle ── */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.setting-copy { flex: 1; min-width: 0; }
+.setting-label {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-display);
+  color: var(--text);
+}
+.setting-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.55;
+}
+.switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.switch .slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 24px;
+  transition: background .2s, border-color .2s;
+}
+.switch .slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  top: 50%;
+  margin-top: -9px;
+  background: var(--text);
+  border-radius: 50%;
+  transition: transform .2s, background .2s;
+}
+.switch input:checked + .slider {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+.switch input:checked + .slider::before {
+  transform: translateX(20px);
+  background: var(--accent);
+}
+.switch input:focus-visible + .slider {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Option lists editor (tables) ── */
+.opt-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.opt-intro {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.65;
+  max-width: 72%;
+  margin: 0;
+}
+.opt-intro ul { margin: 6px 0 0 16px; padding: 0; }
+.opt-intro li { margin-bottom: 4px; }
+.opt-status {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.opt-status-saved { color: var(--muted); border-color: var(--border); }
+.opt-status-unsaved { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
+.opt-status-error { color: var(--red); border-color: var(--red); background: var(--red-dim); }
+.opt-block { margin-bottom: 18px; }
+.opt-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.opt-block-head .form-label { margin-bottom: 0; }
+.opt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.opt-table th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.opt-table td {
+  padding: 6px 8px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+.opt-table tbody tr:last-child td { border-bottom: none; }
+.opt-table .opt-inp {
+  width: 100%;
+  margin: 0;
+}
+.opt-table tr.opt-tr-error td { background: var(--red-dim); }
+.opt-row-hint {
+  display: block;
+  font-size: 10px;
+  color: var(--red);
+  margin-top: 4px;
+  min-height: 14px;
+  line-height: 1.35;
+}
+.opt-actions {
+  width: 72px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.opt-actions .btn { padding: 4px 8px; min-width: 0; }
+.opt-actions .opt-row-hint { text-align: right; max-width: 120px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="wordmark">BVAB // EVAL</div>
+    <div class="sub">Agent Quality System</div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">Evaluate</div>
+    <button class="nav-item active" onclick="navigate('dashboard')"><span class="icon">◈</span> Dashboard</button>
+    <button class="nav-item" onclick="navigate('run')"><span class="icon">▶</span> Run eval</button>
+    <button class="nav-item" onclick="navigate('results')"><span class="icon">◎</span> Results</button>
+    <button class="nav-item" onclick="navigate('compare')"><span class="icon">⇄</span> Compare</button>
+    <div class="nav-section">Dataset</div>
+    <button class="nav-item" onclick="navigate('cases')"><span class="icon">≡</span> Test cases</button>
+    <button class="nav-item" onclick="navigate('new-case')"><span class="icon">+</span> New case</button>
+    <div class="nav-section">Config</div>
+    <button class="nav-item" onclick="navigate('setup')"><span class="icon">⚙</span> Setup</button>
+  </div>
+  <div class="sidebar-footer">
+    <span class="conn-dot" id="conn-dot"></span>
+    <span class="conn-status" id="conn-status">not connected</span>
+  </div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Dashboard</div>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="panel active" id="panel-dashboard">
+    <div class="metric-row" id="dash-metrics">
+      <div class="metric"><div class="metric-label">Latest pass rate</div><div class="metric-value green" id="m-pass">—</div></div>
+      <div class="metric"><div class="metric-label">Avg accuracy</div><div class="metric-value amber" id="m-acc">—</div></div>
+      <div class="metric"><div class="metric-label">Avg safety</div><div class="metric-value green" id="m-safe">—</div></div>
+      <div class="metric"><div class="metric-label">Avg hallucination</div><div class="metric-value blue" id="m-hall">—</div></div>
+      <div class="metric"><div class="metric-label">Test cases</div><div class="metric-value" id="m-cases" style="color:var(--text)">—</div></div>
+      <div class="metric"><div class="metric-label">Total runs</div><div class="metric-value" id="m-runs" style="color:var(--text)">—</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Score breakdown — latest run</div>
+      <div id="dash-bars"><div class="empty"><div>No runs yet</div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recent runs</div>
+      <div id="dash-runs"><div class="empty"><div class="empty-icon">▷</div><div>No eval runs yet.<br>Go to <strong>Run eval</strong> to start.</div></div></div>
+    </div>
+  </div>
+
+  <!-- Run eval -->
+  <div class="panel" id="panel-run">
+    <div class="card">
+      <div class="card-title">Configure run</div>
+      <div class="form-row-2">
+        <div class="form-group"><label class="form-label">Run label</label><input type="text" id="r-label" value="v13-baseline" placeholder="e.g. v13-prompt-v2"></div>
+        <div class="form-group"><label class="form-label">Agent version</label><input type="text" id="r-version" value="v13" placeholder="e.g. v13"></div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Category filter</label>
+          <select id="r-cat"></select>
+        </div>
+        <div class="form-group"><label class="form-label">Case limit</label><input type="number" id="r-limit" value="20" min="1" max="200"></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-accent" onclick="startRun()" id="run-btn">▶ Start run</button>
+        <button class="btn" onclick="showCurl()">Copy curl command</button>
+      </div>
+    </div>
+    <div class="card" id="run-log-card" style="display:none">
+      <div class="card-title">Run progress</div>
+      <div id="run-log" class="code-block" style="min-height:120px;"></div>
+    </div>
+    <div class="card" id="run-result-card" style="display:none">
+      <div class="card-title">Run summary</div>
+      <div id="run-result"></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="panel" id="panel-results">
+    <div class="form-row-2" style="margin-bottom:16px">
+      <div class="form-group"><label class="form-label">Filter by run</label>
+        <select id="res-run-filter" onchange="loadResults()"><option value="">All runs</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Filter by category</label>
+        <select id="res-cat-filter" onchange="loadResults()"></select>
+      </div>
+    </div>
+    <div class="card">
+      <div id="results-list"><div class="empty"><div class="empty-icon">◎</div><div>No results yet</div></div></div>
+    </div>
+  </div>
+
+  <!-- Compare -->
+  <div class="panel" id="panel-compare">
+    <div class="card">
+      <div class="card-title">Version comparison</div>
+      <div class="tbl-wrap" id="compare-table"><div class="empty"><div>Run at least 2 evals to compare</div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Score trends</div>
+      <div id="compare-bars"></div>
+    </div>
+  </div>
+
+  <!-- Test cases -->
+  <div class="panel" id="panel-cases">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="tab-row" style="margin-bottom:0;border:none;" id="cases-tabs"></div>
+      <div class="btn-group">
+        <button class="btn btn-sm" onclick="exportCasesSQL()">Export SQL</button>
+        <button class="btn btn-sm" onclick="downloadCasesCSV()">Download CSV</button>
+        <button class="btn btn-sm" onclick="document.getElementById('csv-import-input').click()">Import CSV</button>
+        <input type="file" id="csv-import-input" accept=".csv,text/csv" hidden onchange="importCasesCSV(event)">
+        <button class="btn btn-sm btn-accent" onclick="navigate('new-case')">+ New case</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Question</th><th>Category</th><th>Difficulty</th><th>Gold answer</th><th>Actions</th></tr></thead>
+          <tbody id="cases-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- New case -->
+  <div class="panel" id="panel-new-case">
+    <div class="card" style="max-width:640px">
+      <div class="card-title" id="case-form-title">New test case</div>
+      <input type="hidden" id="edit-case-id">
+      <div class="form-group"><label class="form-label">Question (in Vietnamese, patient voice)</label>
+        <textarea id="c-question" placeholder="e.g. Bệnh viện An Bình có khoa nhi không?"></textarea></div>
+      <div class="form-group"><label class="form-label">Gold answer — describe ideal behaviour precisely</label>
+        <textarea id="c-gold" placeholder="e.g. Xác nhận có Khoa Nhi, cung cấp tầng/phòng từ KB. Không bịa thêm bác sĩ."></textarea></div>
+      <div class="form-row-3">
+        <div class="form-group"><label class="form-label">Category</label>
+          <select id="c-cat"></select>
+        </div>
+        <div class="form-group"><label class="form-label">Intent</label>
+          <select id="c-intent"></select>
+        </div>
+        <div class="form-group"><label class="form-label">Difficulty / level</label>
+          <select id="c-diff"></select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes for judge (trap to avoid, scoring hint)</label>
+        <input type="text" id="c-notes" placeholder="e.g. Must refuse. Any drug name = safety score 0."></div>
+      <div class="btn-group">
+        <button class="btn btn-accent" onclick="saveCase()" id="save-case-btn">Save case</button>
+        <button class="btn" onclick="navigate('cases')">Cancel</button>
+        <button class="btn" onclick="generateSQL()" style="margin-left:auto">Preview SQL</button>
+      </div>
+      <div id="case-sql-preview" style="display:none;margin-top:14px">
+        <div class="code-block" id="case-sql-code"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Setup -->
+  <div class="panel" id="panel-setup">
+    <div class="card" style="max-width:640px">
+      <div class="card-title">Connection</div>
+      <div class="form-group"><label class="form-label">n8n base URL</label>
+        <input type="url" id="s-n8n" placeholder="http://localhost:5678"></div>
+      <div class="form-group"><label class="form-label">Eval webhook path</label>
+        <input type="text" id="s-webhook" placeholder="/webhook/eval-run"></div>
+      <div class="setting-row" style="margin-top:4px;margin-bottom:14px">
+        <div class="setting-copy">
+          <div class="setting-label">Forward n8n via API (bypass CORS)</div>
+          <div class="setting-hint">Trình duyệt chỉ gọi API BVAB (cùng cổng với Cloud sync). Trên máy chạy API, thêm <code style="color:var(--accent)">N8N_UPSTREAM_URL</code> trong <code>server/.env</code> = đúng URL n8n (giống ô n8n base URL), rồi restart uvicorn.</div>
+        </div>
+        <label class="switch" title="Proxy n8n qua API">
+          <input type="checkbox" id="s-n8n-proxy">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="form-group"><label class="form-label">Postgres REST proxy URL (optional — for live DB reads)</label>
+        <input type="url" id="s-pg" placeholder="http://localhost:3001/query"></div>
+      <div class="form-group"><label class="form-label">OpenAI API key (stored in localStorage only)</label>
+        <input type="text" id="s-oai" placeholder="sk-proj-..."></div>
+      <div class="btn-group">
+        <button class="btn btn-accent" onclick="saveSettings()">Save settings</button>
+        <button class="btn" onclick="testConnection()">Test connection</button>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:640px;margin-top:16px">
+      <div class="card-title">Cloud sync (Postgres)</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7">
+        Run the API in <code style="color:var(--accent)">server/</code> against your Postgres (see <code style="color:var(--accent)">docker-compose.yml</code>).
+        Each signed-in user has their own dataset in the database — backup with <code style="color:var(--accent)">pg_dump</code>.
+        Serve this page over <code style="color:var(--accent)">http://localhost</code> (not <code style="color:var(--accent)">file://</code>) so the browser can call the API.
+      </p>
+      <div class="form-group"><label class="form-label">Eval API base URL</label>
+        <input type="url" id="s-api-base" placeholder="http://127.0.0.1:8787"></div>
+      <div class="form-row-2">
+        <div class="form-group"><label class="form-label">Email</label>
+          <input type="email" id="a-email" placeholder="you@company.com" autocomplete="username"></div>
+        <div class="form-group"><label class="form-label">Password</label>
+          <input type="password" id="a-password" placeholder="min 8 characters" autocomplete="current-password"></div>
+      </div>
+      <div class="btn-group" style="margin-bottom:12px">
+        <button class="btn btn-accent" onclick="authLogin()">Sign in</button>
+        <button class="btn" onclick="authRegister()">Create account</button>
+        <button class="btn" onclick="authLogout()">Sign out</button>
+      </div>
+      <div id="auth-status" style="font-size:11px;color:var(--muted);margin-bottom:10px">Offline (localStorage only).</div>
+      <div class="btn-group">
+        <button class="btn btn-sm" onclick="pullServerStateManual()">Reload from server</button>
+        <button class="btn btn-sm" onclick="pushServerStateManual()">Save now to server</button>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:640px;margin-top:16px">
+      <div class="card-title">Lists for cases</div>
+      <div class="opt-list-head">
+        <div>
+          <p class="opt-intro"><strong>Categories / Intents:</strong> cột <em>Value</em> là ID (chữ thường, số, <code>_</code>). Cột <em>Label</em> là tên hiển thị trên tab và dropdown.</p>
+          <p class="opt-intro" style="margin-top:8px"><strong>Difficulty:</strong> <em>Value</em> = số 1–99 (ghi vào SQL). <em>Label</em> = mô tả (vd. <code>1 — easy</code>).</p>
+          <ul class="opt-intro"><li>Thêm dòng bằng <strong>+ Add row</strong>.</li><li>Nút lưu chỉ bật khi có thay đổi chưa lưu.</li></ul>
+        </div>
+        <div id="opt-lists-status" class="opt-status opt-status-saved">Saved</div>
+      </div>
+      <div id="opt-lists-root">
+        <div class="form-group opt-block">
+          <div class="opt-block-head">
+            <label class="form-label">Categories</label>
+            <button type="button" class="btn btn-sm" onclick="addOptRow('categories')">+ Add row</button>
+          </div>
+          <div class="tbl-wrap">
+            <table class="opt-table" id="opt-tbl-categories">
+              <thead><tr><th style="width:34%">Value</th><th>Label</th><th class="opt-actions"></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="form-group opt-block">
+          <div class="opt-block-head">
+            <label class="form-label">Intents</label>
+            <button type="button" class="btn btn-sm" onclick="addOptRow('intents')">+ Add row</button>
+          </div>
+          <div class="tbl-wrap">
+            <table class="opt-table" id="opt-tbl-intents">
+              <thead><tr><th style="width:34%">Value</th><th>Label</th><th class="opt-actions"></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="form-group opt-block">
+          <div class="opt-block-head">
+            <label class="form-label">Difficulty levels</label>
+            <button type="button" class="btn btn-sm" onclick="addOptRow('difficulties')">+ Add row</button>
+          </div>
+          <div class="tbl-wrap">
+            <table class="opt-table" id="opt-tbl-difficulties">
+              <thead><tr><th style="width:28%">Value</th><th>Label</th><th class="opt-actions"></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-accent btn-sm" id="opt-apply-btn" disabled onclick="applyOptionLists()">Apply &amp; save lists</button>
+        <button type="button" class="btn btn-sm" onclick="resetOptionListsDefaults()">Restore defaults</button>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:640px;margin-top:16px">
+      <div class="card-title">Appearance</div>
+      <div class="setting-row">
+        <div class="setting-copy">
+          <div class="setting-label">Light mode</div>
+          <div class="setting-hint">Bright background and higher contrast for daytime use. Saved with your other settings.</div>
+        </div>
+        <label class="switch" title="Light mode">
+          <input type="checkbox" id="s-light" onchange="onThemeToggle()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:640px;margin-top:16px">
+      <div class="card-title">Database setup SQL</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7">
+        Run this once in your Postgres instance to create the three evaluation tables.
+      </p>
+      <div class="code-block"><span class="cmt">-- Create schema</span>
+<span class="kw">CREATE SCHEMA IF NOT EXISTS</span> evaluation;
+
+<span class="cmt">-- 1) Gold test cases</span>
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> evaluation.auto_test_cases (
+  id          <span class="kw">BIGSERIAL PRIMARY KEY</span>,
+  question    <span class="kw">TEXT NOT NULL</span>,
+  gold_answer <span class="kw">TEXT</span>,
+  intent      <span class="kw">VARCHAR</span>(50),
+  category    <span class="kw">VARCHAR</span>(80),
+  difficulty  <span class="kw">SMALLINT DEFAULT</span> 1,
+  is_active   <span class="kw">BOOLEAN NOT NULL DEFAULT TRUE</span>,
+  created_at  <span class="kw">TIMESTAMPTZ NOT NULL DEFAULT</span> now(),
+  notes       <span class="kw">TEXT</span>
+);
+
+<span class="cmt">-- 2) Per-case scores</span>
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> evaluation.auto_results (
+  id                  <span class="kw">BIGSERIAL PRIMARY KEY</span>,
+  run_id              <span class="kw">BIGINT</span>,
+  test_case_id        <span class="kw">BIGINT REFERENCES</span> evaluation.auto_test_cases(id),
+  agent_answer        <span class="kw">TEXT</span>,
+  score_accuracy      <span class="kw">NUMERIC</span>(3,1),
+  score_helpfulness   <span class="kw">NUMERIC</span>(3,1),
+  score_safety        <span class="kw">NUMERIC</span>(3,1),
+  score_hallucination <span class="kw">NUMERIC</span>(3,1),
+  score_overall       <span class="kw">NUMERIC</span>(3,1),
+  judge_rationale     <span class="kw">TEXT</span>,
+  judge_model         <span class="kw">VARCHAR</span>(80),
+  response_ms         <span class="kw">INTEGER</span>,
+  created_at          <span class="kw">TIMESTAMPTZ NOT NULL DEFAULT</span> now()
+);
+
+<span class="cmt">-- 3) Run aggregates</span>
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> evaluation.auto_runs (
+  id                <span class="kw">BIGSERIAL PRIMARY KEY</span>,
+  run_label         <span class="kw">VARCHAR</span>(120),
+  agent_version     <span class="kw">VARCHAR</span>(80),
+  total_cases       <span class="kw">INTEGER</span>,
+  avg_accuracy      <span class="kw">NUMERIC</span>(3,1),
+  avg_helpfulness   <span class="kw">NUMERIC</span>(3,1),
+  avg_safety        <span class="kw">NUMERIC</span>(3,1),
+  avg_hallucination <span class="kw">NUMERIC</span>(3,1),
+  avg_overall       <span class="kw">NUMERIC</span>(3,1),
+  pass_rate         <span class="kw">NUMERIC</span>(5,2),
+  created_at        <span class="kw">TIMESTAMPTZ NOT NULL DEFAULT</span> now()
+);</div>
+      <div class="btn-group" style="margin-top:12px">
+        <button class="btn btn-sm" onclick="copySetupSQL()">Copy SQL</button>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:640px;margin-top:16px">
+      <div class="card-title">n8n workflow node changes</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7">Three nodes in BVAB_EvalPipeline_v1.json need updating for the <code style="color:var(--accent)">evaluation</code> schema.</p>
+      <div class="step-row">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Load Test Cases from DB</div>
+          <div class="step-desc">Replace the table reference in the SQL query.</div>
+          <div class="code-block"><span class="kw">FROM</span> <span class="str">"evaluation"</span>.auto_test_cases
+<span class="kw">WHERE</span> is_active = <span class="kw">TRUE</span></div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Build Insert SQL (Code node)</div>
+          <div class="step-desc">Find and replace in the JavaScript.</div>
+          <div class="code-block"><span class="cmt">// Change:</span>
+<span class="str">"web_app"</span>.eval_results
+<span class="cmt">// To:</span>
+<span class="str">"evaluation"</span>.auto_results</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Aggregate & Save Run (Code node)</div>
+          <div class="step-desc">Find and replace in the JavaScript.</div>
+          <div class="code-block"><span class="cmt">// Change:</span>
+<span class="str">"web_app"</span>.eval_runs
+<span class="cmt">// To:</span>
+<span class="str">"evaluation"</span>.auto_runs</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-bg" id="modal-curl">
+  <div class="modal">
+    <div class="modal-title">Curl command</div>
+    <div class="code-block" id="curl-code"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="copyCurl()">Copy</button>
+      <button class="btn btn-accent" onclick="closeModal('modal-curl')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-sql">
+  <div class="modal">
+    <div class="modal-title">Export SQL</div>
+    <div class="code-block" id="export-sql-code" style="max-height:400px;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="copyExportSQL()">Copy all</button>
+      <button class="btn btn-accent" onclick="closeModal('modal-sql')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──
+const STATE = {
+  cases: [],
+  runs: [],
+  results: [],
+  nextCaseId: 1,
+  settings: {
+    n8nUrl: 'http://localhost:5678',
+    webhookPath: '/webhook/eval-run',
+    pgUrl: '',
+    oaiKey: '',
+    theme: 'dark',
+    optionLists: null,
+    useN8nProxy: false
+  }
+};
+
+// ── Custom lists (categories, intents, difficulty) — stored in settings (syncs to server) ──
+const DEFAULT_OPTION_LISTS = {
+  categories: [
+    { value: 'info', label: 'Info' },
+    { value: 'booking', label: 'Booking' },
+    { value: 'safety', label: 'Safety' },
+    { value: 'edge', label: 'Edge' },
+    { value: 'general', label: 'General' }
+  ],
+  intents: [
+    { value: 'rag', label: 'rag' },
+    { value: 'booking', label: 'booking' },
+    { value: 'greeting', label: 'greeting' },
+    { value: 'safety', label: 'safety' }
+  ],
+  difficulties: [
+    { value: '1', label: '1 — easy' },
+    { value: '2', label: '2 — medium' },
+    { value: '3', label: '3 — hard' }
+  ]
+};
+
+function cloneDefaults() {
+  return JSON.parse(JSON.stringify(DEFAULT_OPTION_LISTS));
+}
+
+function normalizeEntry(x) {
+  if (x == null) return null;
+  if (typeof x === 'string') {
+    const v = x.trim();
+    return v ? { value: v, label: v } : null;
+  }
+  if (typeof x === 'object' && x.value != null) {
+    const value = String(x.value).trim();
+    if (!value) return null;
+    return { value, label: String(x.label != null ? x.label : value).trim() || value };
+  }
+  return null;
+}
+
+function normalizeOptionListsShape(raw) {
+  if (!raw || typeof raw !== 'object') return cloneDefaults();
+  const out = cloneDefaults();
+  if (Array.isArray(raw.categories) && raw.categories.length) {
+    out.categories = raw.categories.map(normalizeEntry).filter(Boolean);
+  }
+  if (Array.isArray(raw.intents) && raw.intents.length) {
+    out.intents = raw.intents.map(normalizeEntry).filter(Boolean);
+  }
+  if (Array.isArray(raw.difficulties) && raw.difficulties.length) {
+    out.difficulties = raw.difficulties.map(normalizeEntry).filter(Boolean);
+  }
+  const def = cloneDefaults();
+  if (!out.categories.length) out.categories = def.categories;
+  if (!out.intents.length) out.intents = def.intents;
+  if (!out.difficulties.length) out.difficulties = def.difficulties;
+  return out;
+}
+
+function ensureOptionLists() {
+  STATE.settings.optionLists = normalizeOptionListsShape(STATE.settings.optionLists);
+}
+
+function getOptionLists() {
+  ensureOptionLists();
+  return STATE.settings.optionLists;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+let listsBaselineJson = '';
+let _optListWire = false;
+let _optDebTimer = null;
+const OPT_KIND_ORDER = ['categories', 'intents', 'difficulties'];
+
+function stableStringifyLists(obj) {
+  return JSON.stringify({
+    c: obj.categories.map((x) => ({ v: x.value, l: x.label })),
+    i: obj.intents.map((x) => ({ v: x.value, l: x.label })),
+    d: obj.difficulties.map((x) => ({ v: x.value, l: x.label }))
+  });
+}
+
+function clearOptRowVisual(tr) {
+  tr.classList.remove('opt-tr-error');
+  const h = tr.querySelector('.opt-row-hint');
+  if (h) h.textContent = '';
+}
+
+function setOptRowError(tr, msg) {
+  tr.classList.add('opt-tr-error');
+  const h = tr.querySelector('.opt-row-hint');
+  if (h) h.textContent = msg || '';
+}
+
+function readOptionTablesFromDom(opts) {
+  const silent = !!(opts && opts.silent);
+  const out = { categories: [], intents: [], difficulties: [] };
+  let hasErr = false;
+
+  function walk(kind, isNum) {
+    const list = [];
+    const seen = new Set();
+    const tbody = document.querySelector(`#opt-tbl-${kind} tbody`);
+    if (!tbody) return;
+    tbody.querySelectorAll('tr').forEach((tr) => {
+      clearOptRowVisual(tr);
+      const vEl = tr.querySelector('.opt-val');
+      const lEl = tr.querySelector('.opt-lbl');
+      const rawV = (vEl && 'value' in vEl ? String(vEl.value) : '').trim();
+      const rawL = (lEl ? String(lEl.value) : '').trim();
+      if (!rawV && !rawL) return;
+      if (isNum) {
+        const n = parseInt(rawV, 10);
+        if (!Number.isFinite(n) || n < 1 || n > 99) {
+          hasErr = true;
+          setOptRowError(tr, 'Value: number 1–99');
+          return;
+        }
+        const val = String(n);
+        if (seen.has(val)) {
+          hasErr = true;
+          setOptRowError(tr, 'Duplicate level');
+          return;
+        }
+        seen.add(val);
+        list.push({ value: val, label: rawL || ('Level ' + val) });
+      } else {
+        const val = rawV.toLowerCase().replace(/\s+/g, '_');
+        if (!/^[a-z0-9_]+$/.test(val)) {
+          hasErr = true;
+          setOptRowError(tr, 'Value: a–z, 0–9, _ only');
+          return;
+        }
+        if (seen.has(val)) {
+          hasErr = true;
+          setOptRowError(tr, 'Duplicate value');
+          return;
+        }
+        seen.add(val);
+        list.push({ value: val, label: rawL || val });
+      }
+    });
+    out[kind] = list;
+  }
+
+  walk('categories', false);
+  walk('intents', false);
+  walk('difficulties', true);
+
+  if (!out.categories.length || !out.intents.length || !out.difficulties.length) {
+    hasErr = true;
+    if (!silent) toast('Each table needs at least one valid row', 'err');
+  }
+
+  if (hasErr) return null;
+  return out;
+}
+
+function wireOptListsRootOnce() {
+  if (_optListWire) return;
+  const root = document.getElementById('opt-lists-root');
+  if (!root) return;
+  root.addEventListener('input', scheduleOptionListsUiUpdate);
+  root.addEventListener('change', scheduleOptionListsUiUpdate);
+  _optListWire = true;
+}
+
+function scheduleOptionListsUiUpdate() {
+  clearTimeout(_optDebTimer);
+  _optDebTimer = setTimeout(updateOptionListsSaveControls, 45);
+}
+
+function normalizeOptSlugInput(inp) {
+  if (!inp || inp.closest('#opt-tbl-difficulties')) return;
+  const t = inp.value.trim().toLowerCase().replace(/\s+/g, '_');
+  if (inp.value !== t) inp.value = t;
+  scheduleOptionListsUiUpdate();
+}
+
+function appendOptRow(kind, value, label) {
+  const tbody = document.querySelector(`#opt-tbl-${kind} tbody`);
+  if (!tbody) return;
+  const isNum = kind === 'difficulties';
+  const tr = document.createElement('tr');
+  if (isNum) {
+    tr.innerHTML =
+      '<td><input type="number" class="opt-inp opt-val" min="1" max="99" step="1" placeholder="1" autocomplete="off"></td>' +
+      '<td><input type="text" class="opt-inp opt-lbl" placeholder="1 — easy" autocomplete="off"></td>' +
+      '<td class="opt-actions"><button type="button" class="btn btn-sm btn-danger" onclick="removeOptRow(this)" title="Remove row">×</button><span class="opt-row-hint"></span></td>';
+    const v = tr.querySelector('.opt-val');
+    if (value !== '' && value != null) {
+      const n = parseInt(String(value), 10);
+      if (Number.isFinite(n)) v.value = String(n);
+    }
+    tr.querySelector('.opt-lbl').value = label != null ? label : '';
+  } else {
+    tr.innerHTML =
+      '<td><input type="text" class="opt-inp opt-val" placeholder="info" autocomplete="off" onblur="normalizeOptSlugInput(this)"></td>' +
+      '<td><input type="text" class="opt-inp opt-lbl" placeholder="Info" autocomplete="off"></td>' +
+      '<td class="opt-actions"><button type="button" class="btn btn-sm btn-danger" onclick="removeOptRow(this)" title="Remove row">×</button><span class="opt-row-hint"></span></td>';
+    if (value) tr.querySelector('.opt-val').value = value;
+    tr.querySelector('.opt-lbl').value = label != null ? label : '';
+  }
+  tbody.appendChild(tr);
+}
+
+function renderOptionListEditorsFromState() {
+  wireOptListsRootOnce();
+  for (const kind of OPT_KIND_ORDER) {
+    const tbody = document.querySelector(`#opt-tbl-${kind} tbody`);
+    if (!tbody) continue;
+    tbody.innerHTML = '';
+    getOptionLists()[kind].forEach((e) => appendOptRow(kind, e.value, e.label));
+  }
+}
+
+function syncOptionListsUIAfterStateChange() {
+  renderOptionListEditorsFromState();
+  const data = readOptionTablesFromDom({ silent: true });
+  listsBaselineJson = data ? stableStringifyLists(data) : '';
+  updateOptionListsSaveControls();
+}
+
+function updateOptionListsSaveControls() {
+  const st = document.getElementById('opt-lists-status');
+  const btn = document.getElementById('opt-apply-btn');
+  const parsed = readOptionTablesFromDom({ silent: true });
+  if (!st) return;
+  if (!parsed) {
+    st.className = 'opt-status opt-status-error';
+    st.textContent = 'Invalid — fix rows';
+    if (btn) btn.disabled = true;
+    return;
+  }
+  const dirty = stableStringifyLists(parsed) !== listsBaselineJson;
+  st.className = 'opt-status ' + (dirty ? 'opt-status-unsaved' : 'opt-status-saved');
+  st.textContent = dirty ? 'Unsaved changes' : 'Saved';
+  if (btn) btn.disabled = !dirty;
+}
+
+function addOptRow(kind) {
+  appendOptRow(kind, '', '');
+  scheduleOptionListsUiUpdate();
+}
+
+function removeOptRow(btn) {
+  const tr = btn.closest('tr');
+  const tbody = tr && tr.parentElement;
+  if (!tbody || tbody.rows.length <= 1) {
+    toast('Keep at least one row per table', 'err');
+    return;
+  }
+  tr.remove();
+  scheduleOptionListsUiUpdate();
+}
+
+function applyOptionLists() {
+  const data = readOptionTablesFromDom({ silent: true });
+  if (!data) {
+    toast('Fix invalid rows (highlighted) before saving', 'err');
+    updateOptionListsSaveControls();
+    return;
+  }
+  STATE.settings.optionLists = data;
+  refreshAllDynamicSelects();
+  rebuildCasesTabs();
+  save();
+  listsBaselineJson = stableStringifyLists(data);
+  if (document.getElementById('panel-cases').classList.contains('active')) renderCases(currentCatFilter);
+  updateOptionListsSaveControls();
+  toast('Lists saved');
+}
+
+function resetOptionListsDefaults() {
+  STATE.settings.optionLists = cloneDefaults();
+  syncOptionListsUIAfterStateChange();
+  refreshAllDynamicSelects();
+  rebuildCasesTabs();
+  save();
+  if (document.getElementById('panel-cases').classList.contains('active')) renderCases(currentCatFilter);
+  toast('Restored default lists');
+}
+
+function fillSelectFromEntries(sel, entries, emptyOpt) {
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '';
+  if (emptyOpt) {
+    const o = document.createElement('option');
+    o.value = emptyOpt.value;
+    o.textContent = emptyOpt.label;
+    sel.appendChild(o);
+  }
+  for (const e of entries) {
+    const o = document.createElement('option');
+    o.value = e.value;
+    o.textContent = e.label;
+    sel.appendChild(o);
+  }
+  const vals = entries.map(x => x.value);
+  if (cur !== '' && vals.includes(cur)) sel.value = cur;
+}
+
+function ensureSelectHasValue(selId, rawVal) {
+  const sel = document.getElementById(selId);
+  if (!sel || rawVal == null || rawVal === '') return;
+  const v = String(rawVal);
+  if ([...sel.options].some(o => o.value === v)) {
+    sel.value = v;
+    return;
+  }
+  const o = document.createElement('option');
+  o.value = v;
+  o.textContent = v + ' (legacy)';
+  sel.appendChild(o);
+  sel.value = v;
+}
+
+function rebuildRunCategorySelect() {
+  const o = getOptionLists();
+  fillSelectFromEntries(document.getElementById('r-cat'), o.categories, { value: '', label: 'All categories' });
+}
+
+function rebuildResultsCatFilter() {
+  const o = getOptionLists();
+  fillSelectFromEntries(document.getElementById('res-cat-filter'), o.categories, { value: '', label: 'All' });
+}
+
+function rebuildCaseFormSelects() {
+  const o = getOptionLists();
+  fillSelectFromEntries(document.getElementById('c-cat'), o.categories, null);
+  fillSelectFromEntries(document.getElementById('c-intent'), o.intents, null);
+  fillSelectFromEntries(document.getElementById('c-diff'), o.difficulties, null);
+}
+
+function rebuildCasesTabs() {
+  const row = document.getElementById('cases-tabs');
+  if (!row) return;
+  const o = getOptionLists();
+  const ids = new Set(o.categories.map(c => c.value));
+  if (currentCatFilter !== 'all' && !ids.has(currentCatFilter)) currentCatFilter = 'all';
+  const parts = [`<button type="button" class="tab${currentCatFilter === 'all' ? ' active' : ''}" data-cat="" onclick="filterCases('all',this)">All</button>`];
+  for (const c of o.categories) {
+    const enc = encodeURIComponent(c.value);
+    const active = currentCatFilter === c.value ? ' active' : '';
+    parts.push(`<button type="button" class="tab${active}" data-cat="${enc}" onclick="filterCases(decodeURIComponent(this.dataset.cat),this)">${escapeHtml(c.label)}</button>`);
+  }
+  row.innerHTML = parts.join('');
+}
+
+function refreshAllDynamicSelects() {
+  rebuildRunCategorySelect();
+  rebuildResultsCatFilter();
+  rebuildCaseFormSelects();
+}
+
+function badgeClassForCategory(cat) {
+  const m = { info: 'badge-info', booking: 'badge-booking', safety: 'badge-safety', edge: 'badge-edge', general: 'badge-general' };
+  return m[cat] || 'badge-general';
+}
+
+function badgeClassForDifficulty(d) {
+  const n = parseInt(String(d), 10);
+  if (n === 1) return 'badge-d1';
+  if (n === 2) return 'badge-d2';
+  if (n === 3) return 'badge-d3';
+  return 'badge-dx';
+}
+
+// ── Persist: localStorage + optional Postgres via API ──
+const LS_API = 'bvab_api_base';
+const LS_JWT = 'bvab_jwt';
+let _cloudSaveTimer = null;
+
+function apiBase() {
+  return (localStorage.getItem(LS_API) || 'http://127.0.0.1:8787').replace(/\/$/, '');
+}
+
+function n8nBaseTrim() {
+  return (STATE.settings.n8nUrl || '').trim().replace(/\/$/, '');
+}
+function n8nWebhookPathTrim() {
+  let p = (STATE.settings.webhookPath || '').trim();
+  if (!p) p = '/webhook/eval-run';
+  return p.startsWith('/') ? p : '/' + p;
+}
+function useN8nProxyMode() {
+  return !!STATE.settings.useN8nProxy;
+}
+/** URL for GET health check */
+function n8nHealthRequestUrl() {
+  if (useN8nProxyMode()) return apiBase() + '/api/n8n/healthz';
+  return n8nBaseTrim() + '/healthz';
+}
+/** URL for POST eval webhook */
+function n8nEvalPostUrl() {
+  if (useN8nProxyMode()) {
+    const rel = n8nWebhookPathTrim().replace(/^\//, '');
+    return apiBase() + '/api/n8n/' + rel;
+  }
+  return n8nBaseTrim() + n8nWebhookPathTrim();
+}
+
+function saveLocalOnly() {
+  try {
+    localStorage.setItem('bvab_eval', JSON.stringify({
+      cases: STATE.cases, runs: STATE.runs, results: STATE.results,
+      nextCaseId: STATE.nextCaseId, settings: STATE.settings
+    }));
+  } catch (e) {}
+}
+
+function save() {
+  saveLocalOnly();
+  const t = localStorage.getItem(LS_JWT);
+  if (!t) return;
+  clearTimeout(_cloudSaveTimer);
+  _cloudSaveTimer = setTimeout(() => {
+    pushServerNow().catch(() => toast('Cloud save failed', 'err'));
+  }, 400);
+}
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem('bvab_eval') || '{}');
+    if (d.cases)      STATE.cases      = d.cases;
+    if (d.runs)       STATE.runs       = d.runs;
+    if (d.results)    STATE.results    = d.results;
+    if (d.nextCaseId) STATE.nextCaseId = d.nextCaseId;
+    if (d.settings)   Object.assign(STATE.settings, d.settings);
+  } catch (e) {}
+  ensureOptionLists();
+}
+
+function applyStatePayload(d) {
+  if (!d || typeof d !== 'object') return;
+  if (Array.isArray(d.cases))   STATE.cases   = d.cases;
+  if (Array.isArray(d.runs))    STATE.runs    = d.runs;
+  if (Array.isArray(d.results)) STATE.results = d.results;
+  if (d.nextCaseId != null)     STATE.nextCaseId = Math.max(1, parseInt(d.nextCaseId, 10) || 1);
+  if (d.settings && typeof d.settings === 'object') Object.assign(STATE.settings, d.settings);
+  ensureOptionLists();
+}
+
+async function pushServerNow() {
+  const t = localStorage.getItem(LS_JWT);
+  if (!t) return;
+  const body = JSON.stringify({
+    cases: STATE.cases, runs: STATE.runs, results: STATE.results,
+    nextCaseId: STATE.nextCaseId, settings: STATE.settings
+  });
+  const r = await fetch(apiBase() + '/api/state', {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+    body
+  });
+  if (r.status === 401) { authLogout(false); throw new Error('401'); }
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+}
+
+async function pullServerState() {
+  const t = localStorage.getItem(LS_JWT);
+  if (!t) return false;
+  const r = await fetch(apiBase() + '/api/state', { headers: { 'Authorization': 'Bearer ' + t } });
+  if (r.status === 401) { authLogout(false); return false; }
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const server = await r.json();
+  const localHad = (STATE.cases && STATE.cases.length) || (STATE.runs && STATE.runs.length);
+  const serverHad = (server.cases && server.cases.length) || (server.runs && server.runs.length);
+  if (localHad && !serverHad) {
+    await pushServerNow();
+    saveLocalOnly();
+    return true;
+  }
+  applyStatePayload(server);
+  saveLocalOnly();
+  return true;
+}
+
+async function updateAuthStatus() {
+  const el = document.getElementById('auth-status');
+  if (!el) return;
+  const t = localStorage.getItem(LS_JWT);
+  if (!t) { el.textContent = 'Offline (localStorage only).'; return; }
+  try {
+    const res = await fetch(apiBase() + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + t } });
+    if (!res.ok) throw new Error();
+    const u = await res.json();
+    el.textContent = 'Signed in as ' + u.email + ' — data syncs to Postgres.';
+  } catch {
+    el.textContent = 'Could not verify session — try Sign in again.';
+  }
+}
+
+function apiErrDetail(data) {
+  const d = data && data.detail;
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d)) return d.map(x => (x && (x.msg || x.message)) || JSON.stringify(x)).join('; ');
+  return 'Request failed';
+}
+
+async function authLogin() {
+  const email = document.getElementById('a-email').value.trim();
+  const password = document.getElementById('a-password').value;
+  if (!email || !password) { toast('Enter email and password', 'err'); return; }
+  try {
+    const r = await fetch(apiBase() + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(apiErrDetail(data) || 'Login failed', 'err'); return; }
+    localStorage.setItem(LS_JWT, data.access_token);
+    await pullServerState();
+    saveLocalOnly();
+    syncOptionListsUIAfterStateChange();
+    refreshAllDynamicSelects();
+    rebuildCasesTabs();
+    applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
+    refreshDashboard();
+    await updateAuthStatus();
+    toast('Signed in');
+  } catch (e) {
+    toast('API unreachable — check URL and server', 'err');
+  }
+}
+
+async function authRegister() {
+  const email = document.getElementById('a-email').value.trim();
+  const password = document.getElementById('a-password').value;
+  if (!email || password.length < 8) { toast('Email and password (8+ chars) required', 'err'); return; }
+  try {
+    const r = await fetch(apiBase() + '/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(apiErrDetail(data) || 'Register failed', 'err'); return; }
+    localStorage.setItem(LS_JWT, data.access_token);
+    await pullServerState();
+    saveLocalOnly();
+    syncOptionListsUIAfterStateChange();
+    refreshAllDynamicSelects();
+    rebuildCasesTabs();
+    applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
+    refreshDashboard();
+    await updateAuthStatus();
+    toast('Account created');
+  } catch (e) {
+    toast('API unreachable — check URL and server', 'err');
+  }
+}
+
+function authLogout(showToast) {
+  localStorage.removeItem(LS_JWT);
+  updateAuthStatus();
+  if (showToast !== false) toast('Signed out');
+}
+
+async function pullServerStateManual() {
+  if (!localStorage.getItem(LS_JWT)) { toast('Sign in first', 'err'); return; }
+  try {
+    await pullServerState();
+    syncOptionListsUIAfterStateChange();
+    refreshAllDynamicSelects();
+    rebuildCasesTabs();
+    applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
+    refreshDashboard();
+    if (document.getElementById('panel-cases').classList.contains('active')) renderCases(currentCatFilter);
+    await updateAuthStatus();
+    toast('Loaded from server');
+  } catch (e) {
+    toast('Could not load from server', 'err');
+  }
+}
+
+async function pushServerStateManual() {
+  if (!localStorage.getItem(LS_JWT)) { toast('Sign in first', 'err'); return; }
+  try {
+    clearTimeout(_cloudSaveTimer);
+    await pushServerNow();
+    await updateAuthStatus();
+    toast('Saved to server');
+  } catch (e) {
+    toast('Could not save to server', 'err');
+  }
+}
+
+// ── Navigation ──
+const TITLES = { dashboard:'Dashboard', run:'Run eval', results:'Results', compare:'Compare', cases:'Test cases', 'new-case':'New case', setup:'Setup' };
+function navigate(id, opts) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => { if (b.getAttribute('onclick')?.includes("'"+id+"'")) b.classList.add('active'); });
+  document.getElementById('page-title').textContent = TITLES[id] || id;
+  const actions = document.getElementById('topbar-actions');
+  actions.innerHTML = '';
+  if (id === 'dashboard') refreshDashboard();
+  if (id === 'results')   { rebuildResultsCatFilter(); populateRunFilter(); loadResults(); }
+  if (id === 'cases')     { rebuildCasesTabs(); renderCases(currentCatFilter); }
+  if (id === 'compare')   renderCompare();
+  if (id === 'setup')     { loadSettings(); updateAuthStatus(); }
+  if (id === 'run')       rebuildRunCategorySelect();
+  if (id === 'new-case') {
+    rebuildCaseFormSelects();
+    if (!(opts && opts.noReset)) resetCaseForm();
+  }
+}
+
+// ── Toast ──
+let toastTimer;
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 2800);
+}
+
+// ── Modal ──
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── Settings ──
+function applyTheme(theme) {
+  const t = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = t === 'light' ? 'light' : '';
+  STATE.settings.theme = t;
+  const cb = document.getElementById('s-light');
+  if (cb) cb.checked = t === 'light';
+}
+
+function onThemeToggle() {
+  const on = document.getElementById('s-light').checked;
+  applyTheme(on ? 'light' : 'dark');
+  save();
+  toast(on ? 'Light mode on' : 'Dark mode on');
+}
+
+function loadSettings() {
+  document.getElementById('s-api-base').value = localStorage.getItem(LS_API) || 'http://127.0.0.1:8787';
+  document.getElementById('s-n8n').value     = STATE.settings.n8nUrl || '';
+  document.getElementById('s-webhook').value = STATE.settings.webhookPath || '';
+  document.getElementById('s-pg').value      = STATE.settings.pgUrl || '';
+  document.getElementById('s-oai').value     = STATE.settings.oaiKey || '';
+  const px = document.getElementById('s-n8n-proxy');
+  if (px) px.checked = !!STATE.settings.useN8nProxy;
+  applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
+  syncOptionListsUIAfterStateChange();
+}
+function saveSettings() {
+  const apiIn = document.getElementById('s-api-base').value.trim().replace(/\/$/, '') || 'http://127.0.0.1:8787';
+  localStorage.setItem(LS_API, apiIn);
+  STATE.settings.n8nUrl      = document.getElementById('s-n8n').value.trim().replace(/\/$/, '');
+  STATE.settings.webhookPath = document.getElementById('s-webhook').value.trim();
+  STATE.settings.pgUrl       = document.getElementById('s-pg').value.trim();
+  STATE.settings.oaiKey      = document.getElementById('s-oai').value.trim();
+  STATE.settings.useN8nProxy = !!(document.getElementById('s-n8n-proxy') && document.getElementById('s-n8n-proxy').checked);
+  STATE.settings.theme       = document.getElementById('s-light').checked ? 'light' : 'dark';
+  applyTheme(STATE.settings.theme);
+  const lst = readOptionTablesFromDom({ silent: true });
+  if (lst) {
+    STATE.settings.optionLists = lst;
+    listsBaselineJson = stableStringifyLists(lst);
+    refreshAllDynamicSelects();
+    rebuildCasesTabs();
+  }
+  updateOptionListsSaveControls();
+  save();
+  toast('Settings saved');
+  updateConnDot();
+}
+function testConnection() {
+  if (!useN8nProxyMode() && !n8nBaseTrim()) { toast('Enter n8n URL first', 'err'); return; }
+  if (useN8nProxyMode() && !apiBase()) { toast('Set Eval API base URL (Cloud sync)', 'err'); return; }
+  toast('Testing…');
+  const url = n8nHealthRequestUrl();
+  fetch(url, { signal: AbortSignal.timeout(10000) })
+    .then(async (r) => {
+      if (r.ok) { toast('n8n reachable ✓', 'ok'); setConn(true); return; }
+      let msg = 'HTTP ' + r.status;
+      try {
+        const t = await r.text();
+        if (t) msg += ': ' + t.slice(0, 160);
+      } catch (e) {}
+      toast(msg, 'err');
+      setConn(false);
+    })
+    .catch(() => {
+      toast(useN8nProxyMode()
+        ? 'Không gọi được API proxy — bật uvicorn, kiểm tra N8N_UPSTREAM_URL trong server/.env'
+        : 'Could not reach n8n — check URL & CORS', 'err');
+      setConn(false);
+    });
+}
+function setConn(ok) {
+  document.getElementById('conn-dot').className = 'conn-dot' + (ok?' ok':'');
+  document.getElementById('conn-status').textContent = ok ? 'connected' : 'not connected';
+}
+function updateConnDot() { setConn(!!STATE.settings.n8nUrl); }
+
+// ── Cases CRUD ──
+function esc(s) { return String(s||'').replace(/'/g, "''"); }
+function resetCaseForm() {
+  const L = getOptionLists();
+  document.getElementById('case-form-title').textContent = 'New test case';
+  document.getElementById('edit-case-id').value = '';
+  document.getElementById('save-case-btn').textContent = 'Save case';
+  ['c-question','c-gold','c-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('c-cat').value = L.categories[0]?.value || 'info';
+  document.getElementById('c-intent').value = L.intents[0]?.value || 'rag';
+  document.getElementById('c-diff').value = L.difficulties[0]?.value || '1';
+  document.getElementById('case-sql-preview').style.display = 'none';
+}
+function saveCase() {
+  const q    = document.getElementById('c-question').value.trim();
+  const gold = document.getElementById('c-gold').value.trim();
+  if (!q || !gold) { toast('Question and gold answer are required', 'err'); return; }
+  const editId = document.getElementById('edit-case-id').value;
+  const obj = {
+    id:       editId ? parseInt(editId) : STATE.nextCaseId++,
+    question: q,
+    gold_answer: gold,
+    category:    document.getElementById('c-cat').value,
+    intent:      document.getElementById('c-intent').value,
+    difficulty:  (() => { const n = parseInt(document.getElementById('c-diff').value, 10); return Number.isFinite(n) ? n : parseInt(getOptionLists().difficulties[0]?.value, 10) || 1; })(),
+    notes:       document.getElementById('c-notes').value.trim(),
+    is_active:   true,
+    created_at:  new Date().toISOString()
+  };
+  if (editId) {
+    const idx = STATE.cases.findIndex(c => c.id === obj.id);
+    if (idx >= 0) STATE.cases[idx] = obj;
+  } else {
+    STATE.cases.push(obj);
+  }
+  save();
+  toast(editId ? 'Case updated' : 'Case saved');
+  navigate('cases');
+}
+function editCase(id) {
+  const c = STATE.cases.find(x => x.id === id);
+  if (!c) return;
+  navigate('new-case', { noReset: true });
+  document.getElementById('case-form-title').textContent = 'Edit case #' + id;
+  document.getElementById('edit-case-id').value  = id;
+  document.getElementById('save-case-btn').textContent = 'Update case';
+  document.getElementById('c-question').value    = c.question;
+  document.getElementById('c-gold').value        = c.gold_answer;
+  document.getElementById('c-notes').value       = c.notes || '';
+  document.getElementById('case-sql-preview').style.display = 'none';
+  ensureSelectHasValue('c-cat', c.category);
+  ensureSelectHasValue('c-intent', c.intent || getOptionLists().intents[0]?.value);
+  ensureSelectHasValue('c-diff', c.difficulty);
+}
+function deleteCase(id) {
+  if (!confirm('Delete case #' + id + '?')) return;
+  STATE.cases = STATE.cases.filter(c => c.id !== id);
+  save();
+  toast('Case deleted');
+  renderCases(currentCatFilter);
+}
+function generateSQL() {
+  const q    = document.getElementById('c-question').value.trim();
+  const gold = document.getElementById('c-gold').value.trim();
+  if (!q || !gold) { toast('Fill in question and gold answer first', 'err'); return; }
+  const sql = buildInsertSQL({
+    question: q, gold_answer: gold,
+    category:   document.getElementById('c-cat').value,
+    intent:     document.getElementById('c-intent').value,
+    difficulty: document.getElementById('c-diff').value,
+    notes:      document.getElementById('c-notes').value.trim()
+  });
+  document.getElementById('case-sql-code').textContent = sql;
+  document.getElementById('case-sql-preview').style.display = 'block';
+}
+function buildInsertSQL(c) {
+  return `INSERT INTO "evaluation".auto_test_cases\n  (question, gold_answer, category, intent, difficulty, notes, is_active)\nVALUES (\n  '${esc(c.question)}',\n  '${esc(c.gold_answer)}',\n  '${esc(c.category)}',\n  '${esc(c.intent||'rag')}',\n  ${parseInt(c.difficulty)||1},\n  '${esc(c.notes)}',\n  TRUE\n);`;
+}
+
+// ── Render cases table ──
+let currentCatFilter = 'all';
+function filterCases(cat, btn) {
+  currentCatFilter = cat;
+  document.querySelectorAll('#panel-cases .tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderCases(cat);
+}
+function renderCases(cat) {
+  const list = cat === 'all' ? STATE.cases : STATE.cases.filter(c => c.category === cat);
+  const tbody = document.getElementById('cases-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:32px">No cases yet — add some!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td style="color:var(--dim)">${c.id}</td>
+      <td style="max-width:200px">${escapeHtml(c.question)}</td>
+      <td><span class="badge ${badgeClassForCategory(c.category)}">${escapeHtml(c.category)}</span></td>
+      <td><span class="badge ${badgeClassForDifficulty(c.difficulty)}">d${escapeHtml(String(c.difficulty))}</span></td>
+      <td style="max-width:220px;color:var(--muted)">${escapeHtml(String(c.gold_answer||'').slice(0,90))}${(c.gold_answer&&c.gold_answer.length>90)?'…':''}</td>
+      <td><div class="btn-group">
+        <button class="btn btn-sm" onclick="editCase(${c.id})">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteCase(${c.id})">Del</button>
+      </div></td>
+    </tr>`).join('');
+}
+function exportCasesSQL() {
+  const list = currentCatFilter === 'all' ? STATE.cases : STATE.cases.filter(c => c.category === currentCatFilter);
+  if (!list.length) { toast('No cases to export', 'err'); return; }
+  const sql = list.map(c => buildInsertSQL(c)).join('\n\n');
+  document.getElementById('export-sql-code').textContent = sql;
+  document.getElementById('modal-sql').classList.add('open');
+}
+function copyExportSQL() {
+  navigator.clipboard.writeText(document.getElementById('export-sql-code').textContent)
+    .then(() => toast('SQL copied'));
+}
+
+function csvEscapeCell(val) {
+  const s = String(val ?? '');
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function casesListForExport() {
+  return currentCatFilter === 'all' ? STATE.cases : STATE.cases.filter(c => c.category === currentCatFilter);
+}
+
+function downloadCasesCSV() {
+  const list = casesListForExport();
+  if (!list.length) { toast('No cases to export', 'err'); return; }
+  const headers = ['question', 'gold_answer', 'category', 'intent', 'difficulty', 'notes'];
+  const lines = [headers.join(',')];
+  for (const c of list) {
+    lines.push([
+      csvEscapeCell(c.question),
+      csvEscapeCell(c.gold_answer),
+      csvEscapeCell(c.category),
+      csvEscapeCell(c.intent || 'rag'),
+      csvEscapeCell(c.difficulty ?? 1),
+      csvEscapeCell(c.notes || '')
+    ].join(','));
+  }
+  const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bvab_test_cases_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('CSV downloaded');
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', i = 0, inQuotes = false;
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++; continue;
+    }
+    if (c === '"') { inQuotes = true; i++; continue; }
+    if (c === ',') { row.push(field); field = ''; i++; continue; }
+    if (c === '\r') { i++; continue; }
+    if (c === '\n') { row.push(field); field = ''; rows.push(row); row = []; i++; continue; }
+    field += c; i++;
+  }
+  row.push(field);
+  if (row.some(cell => String(cell).trim() !== '')) rows.push(row);
+  return rows;
+}
+
+function normalizeCSVHeader(h) {
+  return String(h || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function importCasesCSV(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      let text = String(reader.result || '');
+      if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+      const table = parseCSV(text);
+      if (!table.length) { toast('CSV is empty', 'err'); return; }
+      const hdr = table[0].map(normalizeCSVHeader);
+      const col = (names) => {
+        for (const n of names) {
+          const j = hdr.indexOf(n);
+          if (j >= 0) return j;
+        }
+        return -1;
+      };
+      const iq = col(['question', 'câu_hỏi']);
+      let ig = col(['gold_answer', 'gold', 'đáp_án_chuẩn', 'goldanswer']);
+      if (ig < 0) ig = hdr.findIndex(h => h.includes('gold') && h.includes('answer'));
+      if (iq < 0 || ig < 0) { toast('CSV needs question and gold_answer columns', 'err'); return; }
+      const ic = col(['category']);
+      const ii = col(['intent']);
+      const idf = col(['difficulty', 'diff']);
+      const ino = col(['notes']);
+      const ol = getOptionLists();
+      const allowedCat = new Set(ol.categories.map(x => x.value));
+      const allowedIntent = new Set(ol.intents.map(x => x.value));
+      const allowedDiff = new Set(ol.difficulties.map(x => parseInt(x.value, 10)).filter(n => Number.isFinite(n)));
+      const defCat = ol.categories[0]?.value || 'info';
+      const defIntent = ol.intents[0]?.value || 'rag';
+      const defDiff = parseInt(ol.difficulties[0]?.value, 10) || 1;
+      let added = 0;
+      for (let r = 1; r < table.length; r++) {
+        const cells = table[r];
+        const question = String(cells[iq] ?? '').trim();
+        const gold_answer = String(cells[ig] ?? '').trim();
+        if (!question || !gold_answer) continue;
+        let category = ic >= 0 ? String(cells[ic] ?? '').trim().toLowerCase().replace(/\s+/g, '_') : defCat;
+        if (!allowedCat.has(category)) category = defCat;
+        let intent = ii >= 0 ? String(cells[ii] ?? '').trim().toLowerCase().replace(/\s+/g, '_') : defIntent;
+        if (!allowedIntent.has(intent)) intent = defIntent;
+        let difficulty = idf >= 0 ? parseInt(String(cells[idf] ?? '').trim(), 10) : defDiff;
+        if (!allowedDiff.has(difficulty)) difficulty = defDiff;
+        const notes = ino >= 0 ? String(cells[ino] ?? '').trim() : '';
+        STATE.cases.push({
+          id: STATE.nextCaseId++,
+          question,
+          gold_answer,
+          category,
+          intent,
+          difficulty,
+          notes,
+          is_active: true,
+          created_at: new Date().toISOString()
+        });
+        added++;
+      }
+      if (!added) { toast('No valid rows (need question + gold_answer)', 'err'); return; }
+      save();
+      renderCases(currentCatFilter);
+      refreshDashboard();
+      toast('Imported ' + added + ' case(s) from CSV');
+    } catch (e) {
+      toast('Could not read CSV', 'err');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ── Run eval ──
+async function startRun() {
+  if (!useN8nProxyMode() && !n8nBaseTrim()) { toast('Enter n8n URL first', 'err'); return; }
+  if (useN8nProxyMode() && !apiBase()) { toast('Set Eval API base URL', 'err'); return; }
+  const url    = n8nEvalPostUrl();
+  const label  = document.getElementById('r-label').value.trim() || 'run-' + Date.now();
+  const version= document.getElementById('r-version').value.trim() || 'unknown';
+  const cat    = document.getElementById('r-cat').value;
+  const limit  = parseInt(document.getElementById('r-limit').value) || 20;
+  const body   = { run_label: label, agent_version: version, limit, ...(cat ? { category: cat } : {}) };
+
+  document.getElementById('run-log-card').style.display = 'block';
+  document.getElementById('run-result-card').style.display = 'none';
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').innerHTML = '<span class="spinner"></span> Running…';
+
+  const log = document.getElementById('run-log');
+  function appendLog(msg) { log.textContent += msg + '\n'; log.scrollTop = log.scrollHeight; }
+  log.textContent = '';
+  appendLog('→ POST ' + url);
+  appendLog('→ payload: ' + JSON.stringify(body));
+  appendLog('');
+
+  const startMs = Date.now();
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(300000)
+    });
+    const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
+    appendLog('← status ' + res.status + ' (' + elapsed + 's)');
+    let data;
+    try { data = await res.json(); } catch { data = await res.text(); }
+    appendLog('← response: ' + JSON.stringify(data, null, 2));
+
+    if (res.ok && data && typeof data === 'object') {
+      const summary = data.summary || data;
+      const runRecord = {
+        id:              STATE.runs.length + 1,
+        run_label:       summary.run_label || label,
+        agent_version:   summary.agent_version || version,
+        total_cases:     summary.total_cases || 0,
+        pass_rate:       parseFloat(summary.pass_rate)  || 0,
+        avg_accuracy:    parseFloat(summary.avg_accuracy)    || 0,
+        avg_helpfulness: parseFloat(summary.avg_helpfulness) || 0,
+        avg_safety:      parseFloat(summary.avg_safety)      || 0,
+        avg_hallucination: parseFloat(summary.avg_hallucination) || 0,
+        avg_overall:     parseFloat(summary.avg_overall)     || 0,
+        created_at:      new Date().toISOString()
+      };
+      STATE.runs.unshift(runRecord);
+      save();
+      showRunResult(runRecord);
+      toast('Run complete — ' + runRecord.pass_rate + '% pass rate');
+    } else {
+      appendLog('\n⚠ Non-200 or unexpected response. Check n8n execution log.');
+      toast('Run returned error — see log', 'err');
+    }
+  } catch(e) {
+    appendLog('\n✖ Fetch failed: ' + e.message);
+    appendLog('\nIf CORS blocked n8n, turn on “Forward n8n via API” in Setup and set N8N_UPSTREAM_URL on the API server.');
+    toast('Connection failed — see log', 'err');
+  } finally {
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('run-btn').innerHTML = '▶ Start run';
+  }
+}
+function showRunResult(r) {
+  const card = document.getElementById('run-result-card');
+  card.style.display = 'block';
+  const dims = [['Accuracy', r.avg_accuracy,'#4fffb0'],['Helpfulness',r.avg_helpfulness,'#4a9eff'],['Safety',r.avg_safety,'#4fffb0'],['Hallucination',r.avg_hallucination,'#ffb340'],['Overall',r.avg_overall,'#b87fff']];
+  document.getElementById('run-result').innerHTML = `
+    <div class="metric-row" style="margin-bottom:16px">
+      <div class="metric"><div class="metric-label">Pass rate</div><div class="metric-value ${r.pass_rate>=70?'green':'amber'}">${r.pass_rate}%</div></div>
+      <div class="metric"><div class="metric-label">Cases</div><div class="metric-value" style="color:var(--text)">${r.total_cases}</div></div>
+      <div class="metric"><div class="metric-label">Overall</div><div class="metric-value ${r.avg_overall>=3.5?'green':'amber'}">${r.avg_overall.toFixed(1)}</div></div>
+    </div>
+    ${dims.map(([lbl,v,c])=>`<div class="score-bar-row"><div class="score-bar-label">${lbl}</div><div class="score-bar-track"><div class="score-bar-fill" style="width:${(v/5)*100}%;background:${c}"></div></div><div class="score-bar-val">${v.toFixed(1)}</div></div>`).join('')}`;
+}
+
+function showCurl() {
+  const url   = (STATE.settings.n8nUrl + STATE.settings.webhookPath).trim() || 'http://localhost:5678/webhook/eval-run';
+  const cat   = document.getElementById('r-cat').value;
+  const body  = { run_label: document.getElementById('r-label').value || 'v13-baseline', agent_version: document.getElementById('r-version').value || 'v13', limit: parseInt(document.getElementById('r-limit').value) || 20, ...(cat ? { category: cat } : {}) };
+  document.getElementById('curl-code').textContent = `curl -X POST ${url} \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body, null, 2)}'`;
+  document.getElementById('modal-curl').classList.add('open');
+}
+function copyCurl() {
+  navigator.clipboard.writeText(document.getElementById('curl-code').textContent).then(() => toast('Copied'));
+}
+
+// ── Dashboard ──
+function refreshDashboard() {
+  const runs   = STATE.runs;
+  const cases  = STATE.cases;
+  const latest = runs[0];
+
+  document.getElementById('m-cases').textContent = cases.length || '—';
+  document.getElementById('m-runs').textContent  = runs.length || '—';
+
+  if (latest) {
+    document.getElementById('m-pass').textContent = latest.pass_rate + '%';
+    document.getElementById('m-acc').textContent  = latest.avg_accuracy.toFixed(1);
+    document.getElementById('m-safe').textContent = latest.avg_safety.toFixed(1);
+    document.getElementById('m-hall').textContent = latest.avg_hallucination.toFixed(1);
+
+    const dims = [['Accuracy',latest.avg_accuracy,'#4fffb0'],['Helpfulness',latest.avg_helpfulness,'#4a9eff'],['Safety',latest.avg_safety,'#4fffb0'],['Hallucination',latest.avg_hallucination,'#ffb340'],['Overall',latest.avg_overall,'#b87fff']];
+    document.getElementById('dash-bars').innerHTML = dims.map(([lbl,v,c]) =>
+      `<div class="score-bar-row"><div class="score-bar-label">${lbl}</div><div class="score-bar-track"><div class="score-bar-fill" style="width:${(v/5)*100}%;background:${c}"></div></div><div class="score-bar-val">${v.toFixed(1)}</div></div>`
+    ).join('');
+  }
+
+  if (runs.length) {
+    document.getElementById('dash-runs').innerHTML = runs.slice(0,6).map(r => `
+      <div class="run-card" onclick="viewRun(${r.id})">
+        <div class="run-card-head">
+          <div><div class="run-label">${r.run_label}</div><div class="run-meta">${r.created_at?.slice(0,10)} · ${r.total_cases} cases · ${r.agent_version}</div></div>
+          <span class="badge ${r.pass_rate>=70?'badge-pass':'badge-fail'}">${r.pass_rate}%</span>
+        </div>
+        <div class="mini-bars">
+          ${[['Acc',r.avg_accuracy,'#4fffb0'],['Help',r.avg_helpfulness,'#4a9eff'],['Safe',r.avg_safety,'#4fffb0'],['Hall',r.avg_hallucination,'#ffb340']].map(([l,v,c])=>`
+          <div class="mini-bar"><div class="mini-bar-track"><div class="mini-bar-fill" style="width:${(v/5)*100}%;background:${c}"></div></div><div class="mini-bar-lbl">${l} ${v.toFixed(1)}</div></div>`).join('')}
+        </div>
+      </div>`).join('');
+  }
+}
+function viewRun(id) { navigate('results'); }
+
+// ── Results ──
+function populateRunFilter() {
+  const sel = document.getElementById('res-run-filter');
+  sel.innerHTML = '<option value="">All runs</option>' + STATE.runs.map(r => `<option value="${r.id}">${r.run_label} (${r.created_at?.slice(0,10)})</option>`).join('');
+}
+function loadResults() {
+  const runFilter = document.getElementById('res-run-filter')?.value;
+  const catFilter = document.getElementById('res-cat-filter')?.value;
+  const runs = runFilter ? STATE.runs.filter(r => r.id == runFilter) : STATE.runs;
+  const el = document.getElementById('results-list');
+  if (!runs.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div>No results yet. Run an eval first.</div></div>'; return; }
+  el.innerHTML = runs.map(r => `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-family:var(--font-display);font-size:14px;font-weight:600">${r.run_label} <span style="font-weight:400;color:var(--muted);font-size:12px">· ${r.agent_version} · ${r.total_cases} cases</span></div>
+        <span class="badge ${r.pass_rate>=70?'badge-pass':'badge-fail'}">${r.pass_rate}% pass</span>
+      </div>
+      <div class="metric-row" style="margin-bottom:12px">
+        ${[['Accuracy',r.avg_accuracy],['Helpfulness',r.avg_helpfulness],['Safety',r.avg_safety],['Hallucination',r.avg_hallucination],['Overall',r.avg_overall]].map(([l,v])=>`<div class="metric"><div class="metric-label">${l}</div><div class="metric-value ${v>=4?'green':v>=3?'amber':'red'}" style="font-size:20px">${v.toFixed(1)}</div></div>`).join('')}
+      </div>
+    </div>`).join('<hr class="divider">');
+}
+
+// ── Compare ──
+function renderCompare() {
+  const runs = STATE.runs;
+  if (runs.length < 2) {
+    document.getElementById('compare-table').innerHTML = '<div class="empty">Run at least 2 evals to compare</div>';
+    document.getElementById('compare-bars').innerHTML = '';
+    return;
+  }
+  document.getElementById('compare-table').innerHTML = `
+    <table>
+      <thead><tr><th>Version</th><th>Pass rate</th><th>Accuracy</th><th>Helpfulness</th><th>Safety</th><th>Hallucination</th><th>Overall</th></tr></thead>
+      <tbody>${runs.map((r,i) => {
+        const prev = runs[i+1];
+        function delta(key) {
+          if (!prev) return '';
+          const d = (r[key] - prev[key]);
+          if (Math.abs(d) < 0.05) return '';
+          return d > 0 ? `<span style="color:var(--accent);font-size:10px"> +${d.toFixed(1)}</span>` : `<span style="color:var(--red);font-size:10px"> ${d.toFixed(1)}</span>`;
+        }
+        return `<tr>
+          <td><span style="font-family:var(--font-display);font-weight:600">${r.run_label}</span>${i===0?'<span class="badge badge-pass" style="margin-left:6px">latest</span>':''}<div style="font-size:10px;color:var(--dim);margin-top:2px">${r.created_at?.slice(0,10)}</div></td>
+          <td><span style="color:${r.pass_rate>=70?'var(--accent)':'var(--amber)'}">${r.pass_rate}%</span>${delta('pass_rate')}</td>
+          <td>${r.avg_accuracy.toFixed(1)}${delta('avg_accuracy')}</td>
+          <td>${r.avg_helpfulness.toFixed(1)}${delta('avg_helpfulness')}</td>
+          <td>${r.avg_safety.toFixed(1)}${delta('avg_safety')}</td>
+          <td>${r.avg_hallucination.toFixed(1)}${delta('avg_hallucination')}</td>
+          <td><strong>${r.avg_overall.toFixed(1)}</strong></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+
+  const dims = ['avg_accuracy','avg_helpfulness','avg_safety','avg_hallucination'];
+  const colors = ['#4fffb0','#4a9eff','#4fffb0','#ffb340'];
+  const labels = ['Accuracy','Helpfulness','Safety','Hallucination'];
+  document.getElementById('compare-bars').innerHTML = dims.map((key,i) => {
+    const bars = runs.slice(0,5).map(r => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="font-size:10px;color:var(--muted);width:90px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.run_label}</div>
+        <div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;width:${(r[key]/5)*100}%;background:${colors[i]}"></div></div>
+        <div style="font-size:11px;width:24px;color:var(--text)">${r[key].toFixed(1)}</div>
+      </div>`).join('');
+    return `<div style="margin-bottom:18px"><div style="font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">${labels[i]}</div>${bars}</div>`;
+  }).join('');
+}
+
+// ── Copy setup SQL ──
+function copySetupSQL() {
+  const sql = `CREATE SCHEMA IF NOT EXISTS evaluation;\n\nCREATE TABLE IF NOT EXISTS evaluation.auto_test_cases (\n  id          BIGSERIAL PRIMARY KEY,\n  question    TEXT NOT NULL,\n  gold_answer TEXT,\n  intent      VARCHAR(50),\n  category    VARCHAR(80),\n  difficulty  SMALLINT DEFAULT 1,\n  is_active   BOOLEAN NOT NULL DEFAULT TRUE,\n  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),\n  notes       TEXT\n);\n\nCREATE TABLE IF NOT EXISTS evaluation.auto_results (\n  id                  BIGSERIAL PRIMARY KEY,\n  run_id              BIGINT,\n  test_case_id        BIGINT REFERENCES evaluation.auto_test_cases(id),\n  agent_answer        TEXT,\n  score_accuracy      NUMERIC(3,1),\n  score_helpfulness   NUMERIC(3,1),\n  score_safety        NUMERIC(3,1),\n  score_hallucination NUMERIC(3,1),\n  score_overall       NUMERIC(3,1),\n  judge_rationale     TEXT,\n  judge_model         VARCHAR(80),\n  response_ms         INTEGER,\n  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS evaluation.auto_runs (\n  id                BIGSERIAL PRIMARY KEY,\n  run_label         VARCHAR(120),\n  agent_version     VARCHAR(80),\n  total_cases       INTEGER,\n  avg_accuracy      NUMERIC(3,1),\n  avg_helpfulness   NUMERIC(3,1),\n  avg_safety        NUMERIC(3,1),\n  avg_hallucination NUMERIC(3,1),\n  avg_overall       NUMERIC(3,1),\n  pass_rate         NUMERIC(5,2),\n  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()\n);`;
+  navigator.clipboard.writeText(sql).then(() => toast('SQL copied'));
+}
+
+// ── Init ──
+load();
+syncOptionListsUIAfterStateChange();
+refreshAllDynamicSelects();
+rebuildCasesTabs();
+(async () => {
+  if (localStorage.getItem(LS_JWT)) {
+    try {
+      await pullServerState();
+      syncOptionListsUIAfterStateChange();
+      refreshAllDynamicSelects();
+      rebuildCasesTabs();
+    } catch (e) { /* keep local snapshot */ }
+  }
+})();
+applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
+updateConnDot();
+refreshDashboard();
+</script>
+</body>
+</html>

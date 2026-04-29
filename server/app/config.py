@@ -46,6 +46,7 @@ DATABASE_URL = _database_url_from_env()
 EVALUATION_DATABASE_URL = (os.environ.get("EVALUATION_DATABASE_URL") or "").strip()
 EVALUATION_SCHEMA = (os.environ.get("EVALUATION_SCHEMA") or "evaluation").strip()
 EVALUATION_TABLE = (os.environ.get("EVALUATION_TABLE") or "auto_test_cases").strip()
+EVALUATION_RESULTS_TABLE = (os.environ.get("EVALUATION_RESULTS_TABLE") or "auto_results").strip()
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev-only-change-in-production")
 JWT_ALG = "HS256"

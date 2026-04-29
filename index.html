@@ -1539,6 +1539,8 @@ function load() {
 
 // ── Navigation ──
 const TITLES = { dashboard:'Dashboard', run:'Run eval', results:'Results', compare:'Compare', cases:'Test cases', 'new-case':'New case', setup:'Setup' };
+/** When opening Results from a run card, pre-select this run in the filter */
+let _pendingResultsRunId = null;
 function navigate(id, opts) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -1551,7 +1553,16 @@ function navigate(id, opts) {
     refreshDashboard();
     void loadCasesFromApi({ silent: true }).then((ok) => { if (ok) refreshDashboard(); });
   }
-  if (id === 'results')   { rebuildResultsCatFilter(); populateRunFilter(); loadResults(); }
+  if (id === 'results') {
+    rebuildResultsCatFilter();
+    populateRunFilter();
+    if (_pendingResultsRunId != null) {
+      const rs = document.getElementById('res-run-filter');
+      if (rs) rs.value = String(_pendingResultsRunId);
+      _pendingResultsRunId = null;
+    }
+    void loadCasesFromApi({ silent: true }).then(() => loadResults());
+  }
   if (id === 'cases') {
     rebuildCasesTabs();
     loadCasesFromApi({ silent: false }).then(() => {
@@ -1995,7 +2006,9 @@ async function startRun() {
         avg_safety:      parseFloat(summary.avg_safety)      || 0,
         avg_hallucination: parseFloat(summary.avg_hallucination) || 0,
         avg_overall:     parseFloat(summary.avg_overall)     || 0,
-        created_at:      new Date().toISOString()
+        created_at:      new Date().toISOString(),
+        /** Postgres `evaluation.auto_results.run_id` when n8n returns it */
+        db_run_id:       summary.run_id != null && summary.run_id !== '' ? Number(summary.run_id) : null
       };
       STATE.runs.unshift(runRecord);
       save();
@@ -2073,29 +2086,171 @@ function refreshDashboard() {
       </div>`).join('');
   }
 }
-function viewRun(id) { navigate('results'); }
+function viewRun(id) {
+  _pendingResultsRunId = id;
+  navigate('results');
+}
 
 // ── Results ──
 function populateRunFilter() {
   const sel = document.getElementById('res-run-filter');
   sel.innerHTML = '<option value="">All runs</option>' + STATE.runs.map(r => `<option value="${r.id}">${r.run_label} (${r.created_at?.slice(0,10)})</option>`).join('');
 }
-function loadResults() {
+
+/** Rows from GET /api/evaluation/results — not persisted to localStorage */
+let dbAutoResults = [];
+
+async function fetchAutoResultsFromApi(runIdDb) {
+  let url = apiBase() + '/api/evaluation/results';
+  if (runIdDb != null && !Number.isNaN(runIdDb)) url += '?run_id=' + encodeURIComponent(String(runIdDb));
+  const r = await fetch(url, { signal: AbortSignal.timeout(45000) });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(t || ('HTTP ' + r.status));
+  }
+  const arr = await r.json();
+  return Array.isArray(arr) ? arr : [];
+}
+
+function categoryForTestCaseId(tcid) {
+  if (tcid == null) return '';
+  const c = STATE.cases.find(x => Number(x.id) === Number(tcid));
+  return (c && c.category) ? String(c.category) : '';
+}
+
+function snippetText(s, maxLen) {
+  if (s == null || s === '') return '—';
+  const t = String(s).replace(/\s+/g, ' ').trim();
+  return t.length <= maxLen ? t : t.slice(0, maxLen) + '…';
+}
+
+/** Mean of a numeric column; skips null/undefined. Returns null if no values. */
+function avgColumn(rows, key) {
+  let sum = 0;
+  let n = 0;
+  for (const r of rows) {
+    const v = r[key];
+    if (v == null || v === '') continue;
+    const x = Number(v);
+    if (Number.isNaN(x)) continue;
+    sum += x;
+    n += 1;
+  }
+  if (!n) return null;
+  return sum / n;
+}
+
+function postgresRowAverages(rows) {
+  return {
+    accuracy: avgColumn(rows, 'score_accuracy'),
+    helpfulness: avgColumn(rows, 'score_helpfulness'),
+    safety: avgColumn(rows, 'score_safety'),
+    hallucination: avgColumn(rows, 'score_hallucination'),
+    overall: avgColumn(rows, 'score_overall'),
+  };
+}
+
+function metricsHtmlFromAvgs(avgs, subtitle) {
+  const pairs = [
+    ['Accuracy', avgs.accuracy],
+    ['Helpfulness', avgs.helpfulness],
+    ['Safety', avgs.safety],
+    ['Hallucination', avgs.hallucination],
+    ['Overall', avgs.overall],
+  ];
+  const inner = pairs.map(([l, v]) => {
+    if (v == null) {
+      return `<div class="metric"><div class="metric-label">${l}</div><div class="metric-value" style="font-size:20px;color:var(--muted)">—</div></div>`;
+    }
+    const cls = v >= 4 ? 'green' : v >= 3 ? 'amber' : 'red';
+    return `<div class="metric"><div class="metric-label">${l}</div><div class="metric-value ${cls}" style="font-size:20px">${v.toFixed(1)}</div></div>`;
+  }).join('');
+  return `
+    <div style="margin-bottom:14px">
+      ${subtitle ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">${subtitle}</div>` : ''}
+      <div class="metric-row" style="margin-bottom:4px">${inner}</div>
+    </div>`;
+}
+
+async function loadResults() {
   const runFilter = document.getElementById('res-run-filter')?.value;
-  const catFilter = document.getElementById('res-cat-filter')?.value;
-  const runs = runFilter ? STATE.runs.filter(r => r.id == runFilter) : STATE.runs;
+  const catFilter = document.getElementById('res-cat-filter')?.value || '';
   const el = document.getElementById('results-list');
-  if (!runs.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div>No results yet. Run an eval first.</div></div>'; return; }
-  el.innerHTML = runs.map(r => `
+  if (!el) return;
+
+  el.innerHTML = '<div class="empty"><div class="empty-icon">◌</div><div>Đang tải Postgres · evaluation.auto_results…</div></div>';
+
+  let runIdForApi = null;
+  if (runFilter) {
+    const selRun = STATE.runs.find(r => String(r.id) === String(runFilter));
+    if (selRun && selRun.db_run_id != null) runIdForApi = selRun.db_run_id;
+  }
+
+  try {
+    dbAutoResults = await fetchAutoResultsFromApi(runIdForApi);
+  } catch (e) {
+    dbAutoResults = [];
+    toast('Không tải evaluation.auto_results — ' + (e.message || String(e)).slice(0, 120), 'err');
+  }
+
+  const runs = runFilter ? STATE.runs.filter(r => r.id == runFilter) : STATE.runs;
+
+  let rows = dbAutoResults.slice();
+  if (catFilter) {
+    rows = rows.filter(row => categoryForTestCaseId(row.test_case_id) === catFilter);
+  }
+  let html = '';
+  if (runs.length) {
+    html += runs.map(r => `
     <div style="margin-bottom:20px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-family:var(--font-display);font-size:14px;font-weight:600">${r.run_label} <span style="font-weight:400;color:var(--muted);font-size:12px">· ${r.agent_version} · ${r.total_cases} cases</span></div>
+        <div style="font-family:var(--font-display);font-size:14px;font-weight:600">${escapeHtml(r.run_label)} <span style="font-weight:400;color:var(--muted);font-size:12px">· ${escapeHtml(r.agent_version)} · ${r.total_cases} cases</span></div>
         <span class="badge ${r.pass_rate>=70?'badge-pass':'badge-fail'}">${r.pass_rate}% pass</span>
       </div>
       <div class="metric-row" style="margin-bottom:12px">
-        ${[['Accuracy',r.avg_accuracy],['Helpfulness',r.avg_helpfulness],['Safety',r.avg_safety],['Hallucination',r.avg_hallucination],['Overall',r.avg_overall]].map(([l,v])=>`<div class="metric"><div class="metric-label">${l}</div><div class="metric-value ${v>=4?'green':v>=3?'amber':'red'}" style="font-size:20px">${v.toFixed(1)}</div></div>`).join('')}
+        ${[['Accuracy',r.avg_accuracy],['Helpfulness',r.avg_helpfulness],['Safety',r.avg_safety],['Hallucination',r.avg_hallucination],['Overall',r.avg_overall]].map(([l,v])=>`<div class="metric"><div class="metric-label">${l}</div><div class="metric-value ${v>=4?'green':v>=3?'amber':'red'}" style="font-size:20px">${Number(v).toFixed(1)}</div></div>`).join('')}
       </div>
     </div>`).join('<hr class="divider">');
+  } else {
+    html += '<div class="empty" style="margin-bottom:16px"><div class="empty-icon">◎</div><div>No local run summaries yet. Run an eval from <strong>Run eval</strong>, or load rows from Postgres below.</div></div>';
+  }
+
+  html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+  html += '<div style="font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Postgres · evaluation.auto_results</div>';
+  if (!rows.length) {
+    html += '<div class="empty"><div>No rows returned for this filter.</div><div style="font-size:12px;color:var(--muted);margin-top:8px">If you chose a run but scores still use local IDs only, set <code style="font-size:11px">run_id</code> in the DB or return <code style="font-size:11px">run_id</code> from n8n so the API can filter.</div></div>';
+  } else {
+    const avgs = postgresRowAverages(rows);
+    html += metricsHtmlFromAvgs(
+      avgs,
+      `Trung bình trên ${rows.length} dòng (theo bộ lọc hiện tại)`,
+    );
+    html += `<div class="tbl-wrap"><table>
+      <thead><tr>
+        <th>id</th><th>run_id</th><th>case</th><th>cat</th>
+        <th>Acc</th><th>Help</th><th>Safe</th><th>Hall</th><th>Overall</th>
+        <th>Rationale</th>
+      </tr></thead>
+      <tbody>${rows.map(row => {
+        const cat = categoryForTestCaseId(row.test_case_id);
+        const acc = row.score_accuracy != null ? Number(row.score_accuracy).toFixed(1) : '—';
+        const help = row.score_helpfulness != null ? Number(row.score_helpfulness).toFixed(1) : '—';
+        const safe = row.score_safety != null ? Number(row.score_safety).toFixed(1) : '—';
+        const hall = row.score_hallucination != null ? Number(row.score_hallucination).toFixed(1) : '—';
+        const ov = row.score_overall != null ? Number(row.score_overall).toFixed(1) : '—';
+        return `<tr>
+          <td>${row.id}</td>
+          <td>${row.run_id != null ? row.run_id : '—'}</td>
+          <td>${row.test_case_id != null ? row.test_case_id : '—'}</td>
+          <td>${escapeHtml(cat || '—')}</td>
+          <td>${acc}</td><td>${help}</td><td>${safe}</td><td>${hall}</td><td>${ov}</td>
+          <td style="max-width:220px;font-size:11px;color:var(--muted)">${escapeHtml(snippetText(row.judge_rationale, 140))}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
 }
 
 // ── Compare ──

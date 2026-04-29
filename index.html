@@ -146,6 +146,27 @@ body {
 }
 .conn-dot.ok { background: var(--accent); }
 .conn-status { font-size: 11px; color: var(--muted); }
+.conn-mode-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.conn-mode-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+.conn-mode-opt input { accent-color: var(--accent); }
+.conn-hint {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
 
 /* ── Main ── */
 .main {
@@ -719,6 +740,22 @@ select option { background: var(--surface2); }
 
   <!-- Test cases -->
   <div class="panel" id="panel-cases">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div class="card-title" style="margin-bottom:8px">Database — test cases</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.65">
+            Target: <code id="eval-db-qualified" style="color:var(--accent)">"evaluation".auto_test_cases</code><br>
+            <span id="eval-db-dsn">…</span>
+          </div>
+        </div>
+        <div class="btn-group" style="align-items:center;flex-shrink:0">
+          <span id="eval-db-status" style="font-size:11px;color:var(--muted);margin-right:4px">—</span>
+          <button type="button" class="btn btn-sm" onclick="testEvaluationDb()">Test DB connection</button>
+        </div>
+      </div>
+      <p style="font-size:10px;color:var(--dim);margin:12px 0 0;line-height:1.5">Đặt trong <code>server/.env</code>: <code>DATABASE_URL</code> (hoặc <code>EVALUATION_DATABASE_URL</code> riêng), cùng <code>EVALUATION_SCHEMA</code>, <code>EVALUATION_TABLE</code>. Trang gọi BVAB API — bật proxy trong Setup hoặc mở app cùng origin với API.</p>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <div class="tab-row" style="margin-bottom:0;border:none;" id="cases-tabs"></div>
       <div class="btn-group">
@@ -776,54 +813,58 @@ select option { background: var(--surface2); }
   <div class="panel" id="panel-setup">
     <div class="card" style="max-width:640px">
       <div class="card-title">Connection</div>
-      <div class="form-group"><label class="form-label">n8n base URL</label>
-        <input type="url" id="s-n8n" placeholder="http://localhost:5678"></div>
-      <div class="form-group"><label class="form-label">Eval webhook path</label>
-        <input type="text" id="s-webhook" placeholder="/webhook/eval-run"></div>
-      <div class="setting-row" style="margin-top:4px;margin-bottom:14px">
-        <div class="setting-copy">
-          <div class="setting-label">Forward n8n via API (bypass CORS)</div>
-          <div class="setting-hint">Trình duyệt chỉ gọi API BVAB (cùng cổng với Cloud sync). Trên máy chạy API, thêm <code style="color:var(--accent)">N8N_UPSTREAM_URL</code> trong <code>server/.env</code> = đúng URL n8n (giống ô n8n base URL), rồi restart uvicorn.</div>
+      <div class="form-group">
+        <label class="form-label">How requests reach n8n</label>
+        <div class="conn-mode-row">
+          <label class="conn-mode-opt"><input type="radio" name="conn-mode" id="s-conn-mode-direct" value="direct" onchange="onConnModeChange()"> Browser → n8n directly</label>
+          <label class="conn-mode-opt"><input type="radio" name="conn-mode" id="s-conn-mode-proxy" value="proxy" onchange="onConnModeChange()"> Browser → BVAB API → n8n (bypass CORS)</label>
         </div>
-        <label class="switch" title="Proxy n8n qua API">
-          <input type="checkbox" id="s-n8n-proxy">
-          <span class="slider"></span>
-        </label>
       </div>
-      <div class="form-group"><label class="form-label">Postgres REST proxy URL (optional — for live DB reads)</label>
-        <input type="url" id="s-pg" placeholder="http://localhost:3001/query"></div>
-      <div class="form-group"><label class="form-label">OpenAI API key (stored in localStorage only)</label>
-        <input type="text" id="s-oai" placeholder="sk-proj-..."></div>
+      <p class="conn-hint" id="s-conn-hint-direct">One field: full POST URL for the eval webhook (same as base URL + path).</p>
+      <p class="conn-hint" id="s-conn-hint-proxy" style="display:none">Trình duyệt chỉ gọi BVAB API. Trên máy chạy API, thêm <code style="color:var(--accent)">N8N_UPSTREAM_URL</code> trong <code>server/.env</code> = URL gốc n8n (vd. <code>http://localhost:5678</code>), rồi restart uvicorn.</p>
+      <div class="form-group">
+        <label class="form-label" id="s-conn-url-label">Eval webhook URL</label>
+        <input type="url" id="s-conn-url" placeholder="http://localhost:5678/webhook/eval-run" autocomplete="off">
+      </div>
       <div class="btn-group">
         <button class="btn btn-accent" onclick="saveSettings()">Save settings</button>
         <button class="btn" onclick="testConnection()">Test connection</button>
       </div>
-    </div>
 
-    <div class="card" style="max-width:640px;margin-top:16px">
-      <div class="card-title">Cloud sync (Postgres)</div>
-      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7">
-        Run the API in <code style="color:var(--accent)">server/</code> against your Postgres (see <code style="color:var(--accent)">docker-compose.yml</code>).
-        Each signed-in user has their own dataset in the database — backup with <code style="color:var(--accent)">pg_dump</code>.
-        Serve this page over <code style="color:var(--accent)">http://localhost</code> (not <code style="color:var(--accent)">file://</code>) so the browser can call the API.
-      </p>
-      <div class="form-group"><label class="form-label">Eval API base URL</label>
-        <input type="url" id="s-api-base" placeholder="http://127.0.0.1:8787"></div>
-      <div class="form-row-2">
-        <div class="form-group"><label class="form-label">Email</label>
-          <input type="email" id="a-email" placeholder="you@company.com" autocomplete="username"></div>
-        <div class="form-group"><label class="form-label">Password</label>
-          <input type="password" id="a-password" placeholder="min 8 characters" autocomplete="current-password"></div>
-      </div>
-      <div class="btn-group" style="margin-bottom:12px">
-        <button class="btn btn-accent" onclick="authLogin()">Sign in</button>
-        <button class="btn" onclick="authRegister()">Create account</button>
-        <button class="btn" onclick="authLogout()">Sign out</button>
-      </div>
-      <div id="auth-status" style="font-size:11px;color:var(--muted);margin-bottom:10px">Offline (localStorage only).</div>
-      <div class="btn-group">
-        <button class="btn btn-sm" onclick="pullServerStateManual()">Reload from server</button>
-        <button class="btn btn-sm" onclick="pushServerStateManual()">Save now to server</button>
+      <div style="border-top:1px solid var(--border);margin:20px 0 0;padding-top:20px">
+        <div class="card-title" style="margin-bottom:10px">n8n workflow node changes</div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7">Three nodes in BVAB_EvalPipeline_v1.json need updating for the <code style="color:var(--accent)">evaluation</code> schema.</p>
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Load Test Cases from DB</div>
+            <div class="step-desc">Replace the table reference in the SQL query.</div>
+            <div class="code-block"><span class="kw">FROM</span> <span class="str">"evaluation"</span>.auto_test_cases
+<span class="kw">WHERE</span> is_active = <span class="kw">TRUE</span></div>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Build Insert SQL (Code node)</div>
+            <div class="step-desc">Find and replace in the JavaScript.</div>
+            <div class="code-block"><span class="cmt">// Change:</span>
+<span class="str">"web_app"</span>.eval_results
+<span class="cmt">// To:</span>
+<span class="str">"evaluation"</span>.auto_results</div>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Aggregate & Save Run (Code node)</div>
+            <div class="step-desc">Find and replace in the JavaScript.</div>
+            <div class="code-block"><span class="cmt">// Change:</span>
+<span class="str">"web_app"</span>.eval_runs
+<span class="cmt">// To:</span>
+<span class="str">"evaluation"</span>.auto_runs</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -894,99 +935,6 @@ select option { background: var(--surface2); }
         </label>
       </div>
     </div>
-
-    <div class="card" style="max-width:640px;margin-top:16px">
-      <div class="card-title">Database setup SQL</div>
-      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7">
-        Run this once in your Postgres instance to create the three evaluation tables.
-      </p>
-      <div class="code-block"><span class="cmt">-- Create schema</span>
-<span class="kw">CREATE SCHEMA IF NOT EXISTS</span> evaluation;
-
-<span class="cmt">-- 1) Gold test cases</span>
-<span class="kw">CREATE TABLE IF NOT EXISTS</span> evaluation.auto_test_cases (
-  id          <span class="kw">BIGSERIAL PRIMARY KEY</span>,
-  question    <span class="kw">TEXT NOT NULL</span>,
-  gold_answer <span class="kw">TEXT</span>,
-  intent      <span class="kw">VARCHAR</span>(50),
-  category    <span class="kw">VARCHAR</span>(80),
-  difficulty  <span class="kw">SMALLINT DEFAULT</span> 1,
-  is_active   <span class="kw">BOOLEAN NOT NULL DEFAULT TRUE</span>,
-  created_at  <span class="kw">TIMESTAMPTZ NOT NULL DEFAULT</span> now(),
-  notes       <span class="kw">TEXT</span>
-);
-
-<span class="cmt">-- 2) Per-case scores</span>
-<span class="kw">CREATE TABLE IF NOT EXISTS</span> evaluation.auto_results (
-  id                  <span class="kw">BIGSERIAL PRIMARY KEY</span>,
-  run_id              <span class="kw">BIGINT</span>,
-  test_case_id        <span class="kw">BIGINT REFERENCES</span> evaluation.auto_test_cases(id),
-  agent_answer        <span class="kw">TEXT</span>,
-  score_accuracy      <span class="kw">NUMERIC</span>(3,1),
-  score_helpfulness   <span class="kw">NUMERIC</span>(3,1),
-  score_safety        <span class="kw">NUMERIC</span>(3,1),
-  score_hallucination <span class="kw">NUMERIC</span>(3,1),
-  score_overall       <span class="kw">NUMERIC</span>(3,1),
-  judge_rationale     <span class="kw">TEXT</span>,
-  judge_model         <span class="kw">VARCHAR</span>(80),
-  response_ms         <span class="kw">INTEGER</span>,
-  created_at          <span class="kw">TIMESTAMPTZ NOT NULL DEFAULT</span> now()
-);
-
-<span class="cmt">-- 3) Run aggregates</span>
-<span class="kw">CREATE TABLE IF NOT EXISTS</span> evaluation.auto_runs (
-  id                <span class="kw">BIGSERIAL PRIMARY KEY</span>,
-  run_label         <span class="kw">VARCHAR</span>(120),
-  agent_version     <span class="kw">VARCHAR</span>(80),
-  total_cases       <span class="kw">INTEGER</span>,
-  avg_accuracy      <span class="kw">NUMERIC</span>(3,1),
-  avg_helpfulness   <span class="kw">NUMERIC</span>(3,1),
-  avg_safety        <span class="kw">NUMERIC</span>(3,1),
-  avg_hallucination <span class="kw">NUMERIC</span>(3,1),
-  avg_overall       <span class="kw">NUMERIC</span>(3,1),
-  pass_rate         <span class="kw">NUMERIC</span>(5,2),
-  created_at        <span class="kw">TIMESTAMPTZ NOT NULL DEFAULT</span> now()
-);</div>
-      <div class="btn-group" style="margin-top:12px">
-        <button class="btn btn-sm" onclick="copySetupSQL()">Copy SQL</button>
-      </div>
-    </div>
-
-    <div class="card" style="max-width:640px;margin-top:16px">
-      <div class="card-title">n8n workflow node changes</div>
-      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7">Three nodes in BVAB_EvalPipeline_v1.json need updating for the <code style="color:var(--accent)">evaluation</code> schema.</p>
-      <div class="step-row">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <div class="step-title">Load Test Cases from DB</div>
-          <div class="step-desc">Replace the table reference in the SQL query.</div>
-          <div class="code-block"><span class="kw">FROM</span> <span class="str">"evaluation"</span>.auto_test_cases
-<span class="kw">WHERE</span> is_active = <span class="kw">TRUE</span></div>
-        </div>
-      </div>
-      <div class="step-row">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <div class="step-title">Build Insert SQL (Code node)</div>
-          <div class="step-desc">Find and replace in the JavaScript.</div>
-          <div class="code-block"><span class="cmt">// Change:</span>
-<span class="str">"web_app"</span>.eval_results
-<span class="cmt">// To:</span>
-<span class="str">"evaluation"</span>.auto_results</div>
-        </div>
-      </div>
-      <div class="step-row">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <div class="step-title">Aggregate & Save Run (Code node)</div>
-          <div class="step-desc">Find and replace in the JavaScript.</div>
-          <div class="code-block"><span class="cmt">// Change:</span>
-<span class="str">"web_app"</span>.eval_runs
-<span class="cmt">// To:</span>
-<span class="str">"evaluation"</span>.auto_runs</div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1025,8 +973,6 @@ const STATE = {
   settings: {
     n8nUrl: 'http://localhost:5678',
     webhookPath: '/webhook/eval-run',
-    pgUrl: '',
-    oaiKey: '',
     theme: 'dark',
     optionLists: null,
     useN8nProxy: false
@@ -1409,13 +1355,83 @@ function badgeClassForDifficulty(d) {
   return 'badge-dx';
 }
 
-// ── Persist: localStorage + optional Postgres via API ──
+// ── Persist: localStorage; BVAB API URL for n8n proxy ──
 const LS_API = 'bvab_api_base';
-const LS_JWT = 'bvab_jwt';
-let _cloudSaveTimer = null;
 
 function apiBase() {
   return (localStorage.getItem(LS_API) || 'http://127.0.0.1:8787').replace(/\/$/, '');
+}
+
+async function loadEvaluationDbPanel() {
+  const qEl = document.getElementById('eval-db-qualified');
+  const dsnEl = document.getElementById('eval-db-dsn');
+  const st = document.getElementById('eval-db-status');
+  if (!qEl || !dsnEl) return;
+  if (st) { st.textContent = '…'; st.style.color = 'var(--muted)'; }
+  try {
+    const r = await fetch(apiBase() + '/api/evaluation/config', { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    qEl.textContent = j.qualified_name || ('"' + j.schema + '".' + j.table);
+    dsnEl.textContent = j.dsn_summary + (j.uses_dedicated_eval_url ? ' · EVALUATION_DATABASE_URL' : ' · DATABASE_URL');
+    if (st) { st.textContent = 'chưa kiểm tra'; st.style.color = 'var(--muted)'; }
+  } catch (e) {
+    qEl.textContent = '"evaluation".auto_test_cases';
+    dsnEl.textContent = 'Không tải được — chạy uvicorn và đặt BVAB API base URL trong Setup.';
+    if (st) { st.textContent = 'API không phản hồi'; st.style.color = 'var(--red)'; }
+  }
+}
+
+async function testEvaluationDb() {
+  const st = document.getElementById('eval-db-status');
+  if (st) { st.textContent = 'Đang kiểm tra…'; st.style.color = 'var(--muted)'; }
+  try {
+    const r = await fetch(apiBase() + '/api/evaluation/test', { signal: AbortSignal.timeout(15000) });
+    const j = await r.json();
+    if (j.ok) {
+      if (st) { st.textContent = 'OK · ' + j.row_count + ' rows'; st.style.color = 'var(--accent)'; }
+      toast('Kết nối OK — ' + j.row_count + ' dòng trong ' + j.qualified_name, 'ok');
+    } else {
+      if (st) { st.textContent = 'Lỗi'; st.style.color = 'var(--red)'; }
+      toast(j.error || 'Connection failed', 'err');
+    }
+  } catch (e) {
+    if (st) { st.textContent = 'Lỗi mạng'; st.style.color = 'var(--red)'; }
+    toast('Không gọi được API — kiểm tra BVAB API base URL', 'err');
+  }
+}
+
+function normalizeCaseRow(c) {
+  return {
+    id: c.id,
+    question: c.question,
+    gold_answer: c.gold_answer != null ? c.gold_answer : '',
+    category: c.category || 'general',
+    intent: c.intent || 'rag',
+    difficulty: c.difficulty != null ? c.difficulty : 1,
+    notes: c.notes || '',
+    is_active: c.is_active !== false,
+    created_at: c.created_at || new Date().toISOString()
+  };
+}
+
+/** Load test cases from Postgres via BVAB API (`evaluation.auto_test_cases`). */
+async function loadCasesFromApi(opts) {
+  const silent = opts && opts.silent;
+  try {
+    const r = await fetch(apiBase() + '/api/evaluation/cases', { signal: AbortSignal.timeout(45000) });
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(t || ('HTTP ' + r.status));
+    }
+    const arr = await r.json();
+    STATE.cases = (Array.isArray(arr) ? arr : []).map(normalizeCaseRow);
+    saveLocalOnly();
+    return true;
+  } catch (e) {
+    if (!silent) toast('Không tải test cases từ DB — ' + (e.message || String(e)).slice(0, 180), 'err');
+    return false;
+  }
 }
 
 function n8nBaseTrim() {
@@ -1443,6 +1459,59 @@ function n8nEvalPostUrl() {
   return n8nBaseTrim() + n8nWebhookPathTrim();
 }
 
+function parseEvalWebhookUrl(s) {
+  if (!s || !String(s).trim()) return null;
+  try {
+    const u = new URL(String(s).trim());
+    const base = u.origin.replace(/\/$/, '');
+    let path = u.pathname || '/';
+    if (u.search) path += u.search;
+    if (u.hash) path += u.hash;
+    if (path && !path.startsWith('/')) path = '/' + path;
+    return { base, path: path || '/webhook/eval-run' };
+  } catch (e) {
+    return null;
+  }
+}
+
+function directConnUrlFromState() {
+  const b = (STATE.settings.n8nUrl || 'http://localhost:5678').replace(/\/$/, '');
+  return b + n8nWebhookPathTrim();
+}
+
+function getConnectionConfigFromDom() {
+  const proxy = document.getElementById('s-conn-mode-proxy').checked;
+  const raw = document.getElementById('s-conn-url').value.trim();
+  if (proxy) {
+    const apiBaseVal = raw.replace(/\/$/, '') || 'http://127.0.0.1:8787';
+    return { useN8nProxy: true, apiBase: apiBaseVal, parseError: false };
+  }
+  if (!raw) return { useN8nProxy: false, n8nUrl: '', webhookPath: '/webhook/eval-run', parseError: false };
+  const sp = parseEvalWebhookUrl(raw);
+  if (!sp) return { useN8nProxy: false, parseError: true };
+  return { useN8nProxy: false, n8nUrl: sp.base, webhookPath: sp.path, parseError: false };
+}
+
+function onConnModeChange() {
+  const proxy = document.getElementById('s-conn-mode-proxy').checked;
+  const hd = document.getElementById('s-conn-hint-direct');
+  const hp = document.getElementById('s-conn-hint-proxy');
+  if (hd) hd.style.display = proxy ? 'none' : 'block';
+  if (hp) hp.style.display = proxy ? 'block' : 'none';
+  const lab = document.getElementById('s-conn-url-label');
+  const inp = document.getElementById('s-conn-url');
+  if (!lab || !inp) return;
+  if (proxy) {
+    lab.textContent = 'BVAB API base URL';
+    inp.placeholder = 'http://127.0.0.1:8787';
+    inp.value = (localStorage.getItem(LS_API) || 'http://127.0.0.1:8787').replace(/\/$/, '');
+  } else {
+    lab.textContent = 'Eval webhook URL';
+    inp.placeholder = 'http://localhost:5678/webhook/eval-run';
+    inp.value = directConnUrlFromState();
+  }
+}
+
 function saveLocalOnly() {
   try {
     localStorage.setItem('bvab_eval', JSON.stringify({
@@ -1454,12 +1523,6 @@ function saveLocalOnly() {
 
 function save() {
   saveLocalOnly();
-  const t = localStorage.getItem(LS_JWT);
-  if (!t) return;
-  clearTimeout(_cloudSaveTimer);
-  _cloudSaveTimer = setTimeout(() => {
-    pushServerNow().catch(() => toast('Cloud save failed', 'err'));
-  }, 400);
 }
 
 function load() {
@@ -1474,162 +1537,6 @@ function load() {
   ensureOptionLists();
 }
 
-function applyStatePayload(d) {
-  if (!d || typeof d !== 'object') return;
-  if (Array.isArray(d.cases))   STATE.cases   = d.cases;
-  if (Array.isArray(d.runs))    STATE.runs    = d.runs;
-  if (Array.isArray(d.results)) STATE.results = d.results;
-  if (d.nextCaseId != null)     STATE.nextCaseId = Math.max(1, parseInt(d.nextCaseId, 10) || 1);
-  if (d.settings && typeof d.settings === 'object') Object.assign(STATE.settings, d.settings);
-  ensureOptionLists();
-}
-
-async function pushServerNow() {
-  const t = localStorage.getItem(LS_JWT);
-  if (!t) return;
-  const body = JSON.stringify({
-    cases: STATE.cases, runs: STATE.runs, results: STATE.results,
-    nextCaseId: STATE.nextCaseId, settings: STATE.settings
-  });
-  const r = await fetch(apiBase() + '/api/state', {
-    method: 'PUT',
-    headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
-    body
-  });
-  if (r.status === 401) { authLogout(false); throw new Error('401'); }
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-}
-
-async function pullServerState() {
-  const t = localStorage.getItem(LS_JWT);
-  if (!t) return false;
-  const r = await fetch(apiBase() + '/api/state', { headers: { 'Authorization': 'Bearer ' + t } });
-  if (r.status === 401) { authLogout(false); return false; }
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const server = await r.json();
-  const localHad = (STATE.cases && STATE.cases.length) || (STATE.runs && STATE.runs.length);
-  const serverHad = (server.cases && server.cases.length) || (server.runs && server.runs.length);
-  if (localHad && !serverHad) {
-    await pushServerNow();
-    saveLocalOnly();
-    return true;
-  }
-  applyStatePayload(server);
-  saveLocalOnly();
-  return true;
-}
-
-async function updateAuthStatus() {
-  const el = document.getElementById('auth-status');
-  if (!el) return;
-  const t = localStorage.getItem(LS_JWT);
-  if (!t) { el.textContent = 'Offline (localStorage only).'; return; }
-  try {
-    const res = await fetch(apiBase() + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + t } });
-    if (!res.ok) throw new Error();
-    const u = await res.json();
-    el.textContent = 'Signed in as ' + u.email + ' — data syncs to Postgres.';
-  } catch {
-    el.textContent = 'Could not verify session — try Sign in again.';
-  }
-}
-
-function apiErrDetail(data) {
-  const d = data && data.detail;
-  if (typeof d === 'string') return d;
-  if (Array.isArray(d)) return d.map(x => (x && (x.msg || x.message)) || JSON.stringify(x)).join('; ');
-  return 'Request failed';
-}
-
-async function authLogin() {
-  const email = document.getElementById('a-email').value.trim();
-  const password = document.getElementById('a-password').value;
-  if (!email || !password) { toast('Enter email and password', 'err'); return; }
-  try {
-    const r = await fetch(apiBase() + '/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) { toast(apiErrDetail(data) || 'Login failed', 'err'); return; }
-    localStorage.setItem(LS_JWT, data.access_token);
-    await pullServerState();
-    saveLocalOnly();
-    syncOptionListsUIAfterStateChange();
-    refreshAllDynamicSelects();
-    rebuildCasesTabs();
-    applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
-    refreshDashboard();
-    await updateAuthStatus();
-    toast('Signed in');
-  } catch (e) {
-    toast('API unreachable — check URL and server', 'err');
-  }
-}
-
-async function authRegister() {
-  const email = document.getElementById('a-email').value.trim();
-  const password = document.getElementById('a-password').value;
-  if (!email || password.length < 8) { toast('Email and password (8+ chars) required', 'err'); return; }
-  try {
-    const r = await fetch(apiBase() + '/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) { toast(apiErrDetail(data) || 'Register failed', 'err'); return; }
-    localStorage.setItem(LS_JWT, data.access_token);
-    await pullServerState();
-    saveLocalOnly();
-    syncOptionListsUIAfterStateChange();
-    refreshAllDynamicSelects();
-    rebuildCasesTabs();
-    applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
-    refreshDashboard();
-    await updateAuthStatus();
-    toast('Account created');
-  } catch (e) {
-    toast('API unreachable — check URL and server', 'err');
-  }
-}
-
-function authLogout(showToast) {
-  localStorage.removeItem(LS_JWT);
-  updateAuthStatus();
-  if (showToast !== false) toast('Signed out');
-}
-
-async function pullServerStateManual() {
-  if (!localStorage.getItem(LS_JWT)) { toast('Sign in first', 'err'); return; }
-  try {
-    await pullServerState();
-    syncOptionListsUIAfterStateChange();
-    refreshAllDynamicSelects();
-    rebuildCasesTabs();
-    applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
-    refreshDashboard();
-    if (document.getElementById('panel-cases').classList.contains('active')) renderCases(currentCatFilter);
-    await updateAuthStatus();
-    toast('Loaded from server');
-  } catch (e) {
-    toast('Could not load from server', 'err');
-  }
-}
-
-async function pushServerStateManual() {
-  if (!localStorage.getItem(LS_JWT)) { toast('Sign in first', 'err'); return; }
-  try {
-    clearTimeout(_cloudSaveTimer);
-    await pushServerNow();
-    await updateAuthStatus();
-    toast('Saved to server');
-  } catch (e) {
-    toast('Could not save to server', 'err');
-  }
-}
-
 // ── Navigation ──
 const TITLES = { dashboard:'Dashboard', run:'Run eval', results:'Results', compare:'Compare', cases:'Test cases', 'new-case':'New case', setup:'Setup' };
 function navigate(id, opts) {
@@ -1640,11 +1547,20 @@ function navigate(id, opts) {
   document.getElementById('page-title').textContent = TITLES[id] || id;
   const actions = document.getElementById('topbar-actions');
   actions.innerHTML = '';
-  if (id === 'dashboard') refreshDashboard();
+  if (id === 'dashboard') {
+    refreshDashboard();
+    void loadCasesFromApi({ silent: true }).then((ok) => { if (ok) refreshDashboard(); });
+  }
   if (id === 'results')   { rebuildResultsCatFilter(); populateRunFilter(); loadResults(); }
-  if (id === 'cases')     { rebuildCasesTabs(); renderCases(currentCatFilter); }
+  if (id === 'cases') {
+    rebuildCasesTabs();
+    loadCasesFromApi({ silent: false }).then(() => {
+      renderCases(currentCatFilter);
+      loadEvaluationDbPanel();
+    });
+  }
   if (id === 'compare')   renderCompare();
-  if (id === 'setup')     { loadSettings(); updateAuthStatus(); }
+  if (id === 'setup')     { loadSettings(); }
   if (id === 'run')       rebuildRunCategorySelect();
   if (id === 'new-case') {
     rebuildCaseFormSelects();
@@ -1682,24 +1598,26 @@ function onThemeToggle() {
 }
 
 function loadSettings() {
-  document.getElementById('s-api-base').value = localStorage.getItem(LS_API) || 'http://127.0.0.1:8787';
-  document.getElementById('s-n8n').value     = STATE.settings.n8nUrl || '';
-  document.getElementById('s-webhook').value = STATE.settings.webhookPath || '';
-  document.getElementById('s-pg').value      = STATE.settings.pgUrl || '';
-  document.getElementById('s-oai').value     = STATE.settings.oaiKey || '';
-  const px = document.getElementById('s-n8n-proxy');
-  if (px) px.checked = !!STATE.settings.useN8nProxy;
+  const proxy = !!STATE.settings.useN8nProxy;
+  const rd = document.getElementById('s-conn-mode-direct');
+  const rp = document.getElementById('s-conn-mode-proxy');
+  if (rd) rd.checked = !proxy;
+  if (rp) rp.checked = proxy;
+  onConnModeChange();
   applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
   syncOptionListsUIAfterStateChange();
 }
 function saveSettings() {
-  const apiIn = document.getElementById('s-api-base').value.trim().replace(/\/$/, '') || 'http://127.0.0.1:8787';
-  localStorage.setItem(LS_API, apiIn);
-  STATE.settings.n8nUrl      = document.getElementById('s-n8n').value.trim().replace(/\/$/, '');
-  STATE.settings.webhookPath = document.getElementById('s-webhook').value.trim();
-  STATE.settings.pgUrl       = document.getElementById('s-pg').value.trim();
-  STATE.settings.oaiKey      = document.getElementById('s-oai').value.trim();
-  STATE.settings.useN8nProxy = !!(document.getElementById('s-n8n-proxy') && document.getElementById('s-n8n-proxy').checked);
+  const cfg = getConnectionConfigFromDom();
+  if (cfg.parseError) { toast('URL webhook không hợp lệ', 'err'); return; }
+  if (!cfg.useN8nProxy && !cfg.n8nUrl) { toast('Nhập eval webhook URL', 'err'); return; }
+  STATE.settings.useN8nProxy = cfg.useN8nProxy;
+  if (cfg.useN8nProxy) {
+    localStorage.setItem(LS_API, cfg.apiBase);
+  } else {
+    STATE.settings.n8nUrl = (cfg.n8nUrl || '').replace(/\/$/, '');
+    STATE.settings.webhookPath = cfg.webhookPath || '/webhook/eval-run';
+  }
   STATE.settings.theme       = document.getElementById('s-light').checked ? 'light' : 'dark';
   applyTheme(STATE.settings.theme);
   const lst = readOptionTablesFromDom({ silent: true });
@@ -1715,10 +1633,14 @@ function saveSettings() {
   updateConnDot();
 }
 function testConnection() {
-  if (!useN8nProxyMode() && !n8nBaseTrim()) { toast('Enter n8n URL first', 'err'); return; }
-  if (useN8nProxyMode() && !apiBase()) { toast('Set Eval API base URL (Cloud sync)', 'err'); return; }
+  const cfg = getConnectionConfigFromDom();
+  if (cfg.parseError) { toast('URL webhook không hợp lệ', 'err'); return; }
+  if (!cfg.useN8nProxy && !cfg.n8nUrl) { toast('Nhập eval webhook URL', 'err'); return; }
+  if (cfg.useN8nProxy && !cfg.apiBase) { toast('Đặt BVAB API base URL', 'err'); return; }
   toast('Testing…');
-  const url = n8nHealthRequestUrl();
+  const url = cfg.useN8nProxy
+    ? cfg.apiBase.replace(/\/$/, '') + '/api/n8n/healthz'
+    : cfg.n8nUrl.replace(/\/$/, '') + '/healthz';
   fetch(url, { signal: AbortSignal.timeout(10000) })
     .then(async (r) => {
       if (r.ok) { toast('n8n reachable ✓', 'ok'); setConn(true); return; }
@@ -1731,7 +1653,7 @@ function testConnection() {
       setConn(false);
     })
     .catch(() => {
-      toast(useN8nProxyMode()
+      toast(cfg.useN8nProxy
         ? 'Không gọi được API proxy — bật uvicorn, kiểm tra N8N_UPSTREAM_URL trong server/.env'
         : 'Could not reach n8n — check URL & CORS', 'err');
       setConn(false);
@@ -1741,7 +1663,9 @@ function setConn(ok) {
   document.getElementById('conn-dot').className = 'conn-dot' + (ok?' ok':'');
   document.getElementById('conn-status').textContent = ok ? 'connected' : 'not connected';
 }
-function updateConnDot() { setConn(!!STATE.settings.n8nUrl); }
+function updateConnDot() {
+  setConn(useN8nProxyMode() ? !!apiBase() : !!n8nBaseTrim());
+}
 
 // ── Cases CRUD ──
 function esc(s) { return String(s||'').replace(/'/g, "''"); }
@@ -1756,31 +1680,45 @@ function resetCaseForm() {
   document.getElementById('c-diff').value = L.difficulties[0]?.value || '1';
   document.getElementById('case-sql-preview').style.display = 'none';
 }
-function saveCase() {
+async function saveCase() {
   const q    = document.getElementById('c-question').value.trim();
   const gold = document.getElementById('c-gold').value.trim();
   if (!q || !gold) { toast('Question and gold answer are required', 'err'); return; }
   const editId = document.getElementById('edit-case-id').value;
-  const obj = {
-    id:       editId ? parseInt(editId) : STATE.nextCaseId++,
+  const difficulty = (() => { const n = parseInt(document.getElementById('c-diff').value, 10); return Number.isFinite(n) ? n : parseInt(getOptionLists().difficulties[0]?.value, 10) || 1; })();
+  const payload = {
     question: q,
     gold_answer: gold,
-    category:    document.getElementById('c-cat').value,
-    intent:      document.getElementById('c-intent').value,
-    difficulty:  (() => { const n = parseInt(document.getElementById('c-diff').value, 10); return Number.isFinite(n) ? n : parseInt(getOptionLists().difficulties[0]?.value, 10) || 1; })(),
-    notes:       document.getElementById('c-notes').value.trim(),
-    is_active:   true,
-    created_at:  new Date().toISOString()
+    category: document.getElementById('c-cat').value,
+    intent: document.getElementById('c-intent').value,
+    difficulty,
+    notes: document.getElementById('c-notes').value.trim(),
+    is_active: true
   };
-  if (editId) {
-    const idx = STATE.cases.findIndex(c => c.id === obj.id);
-    if (idx >= 0) STATE.cases[idx] = obj;
-  } else {
-    STATE.cases.push(obj);
+  try {
+    const base = apiBase();
+    if (editId) {
+      const r = await fetch(base + '/api/evaluation/cases/' + editId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) throw new Error(await r.text() || ('HTTP ' + r.status));
+    } else {
+      const r = await fetch(base + '/api/evaluation/cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) throw new Error(await r.text() || ('HTTP ' + r.status));
+    }
+    toast(editId ? 'Case updated' : 'Case saved');
+    await loadCasesFromApi({ silent: true });
+    save();
+    navigate('cases');
+  } catch (e) {
+    toast((e.message || String(e)).slice(0, 200), 'err');
   }
-  save();
-  toast(editId ? 'Case updated' : 'Case saved');
-  navigate('cases');
 }
 function editCase(id) {
   const c = STATE.cases.find(x => x.id === id);
@@ -1797,12 +1735,18 @@ function editCase(id) {
   ensureSelectHasValue('c-intent', c.intent || getOptionLists().intents[0]?.value);
   ensureSelectHasValue('c-diff', c.difficulty);
 }
-function deleteCase(id) {
+async function deleteCase(id) {
   if (!confirm('Delete case #' + id + '?')) return;
-  STATE.cases = STATE.cases.filter(c => c.id !== id);
-  save();
-  toast('Case deleted');
-  renderCases(currentCatFilter);
+  try {
+    const r = await fetch(apiBase() + '/api/evaluation/cases/' + id, { method: 'DELETE' });
+    if (!r.ok && r.status !== 204) throw new Error(await r.text() || ('HTTP ' + r.status));
+    toast('Case deleted');
+    await loadCasesFromApi({ silent: true });
+    save();
+    renderCases(currentCatFilter);
+  } catch (e) {
+    toast((e.message || String(e)).slice(0, 200), 'err');
+  }
 }
 function generateSQL() {
   const q    = document.getElementById('c-question').value.trim();
@@ -1928,7 +1872,7 @@ function importCasesCSV(ev) {
   ev.target.value = '';
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       let text = String(reader.result || '');
       if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
@@ -1958,6 +1902,7 @@ function importCasesCSV(ev) {
       const defIntent = ol.intents[0]?.value || 'rag';
       const defDiff = parseInt(ol.difficulties[0]?.value, 10) || 1;
       let added = 0;
+      const base = apiBase();
       for (let r = 1; r < table.length; r++) {
         const cells = table[r];
         const question = String(cells[iq] ?? '').trim();
@@ -1970,20 +1915,25 @@ function importCasesCSV(ev) {
         let difficulty = idf >= 0 ? parseInt(String(cells[idf] ?? '').trim(), 10) : defDiff;
         if (!allowedDiff.has(difficulty)) difficulty = defDiff;
         const notes = ino >= 0 ? String(cells[ino] ?? '').trim() : '';
-        STATE.cases.push({
-          id: STATE.nextCaseId++,
-          question,
-          gold_answer,
-          category,
-          intent,
-          difficulty,
-          notes,
-          is_active: true,
-          created_at: new Date().toISOString()
-        });
-        added++;
+        try {
+          const res = await fetch(base + '/api/evaluation/cases', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question,
+              gold_answer,
+              category,
+              intent,
+              difficulty,
+              notes,
+              is_active: true
+            })
+          });
+          if (res.ok) added++;
+        } catch (err) { /* skip row */ }
       }
-      if (!added) { toast('No valid rows (need question + gold_answer)', 'err'); return; }
+      if (!added) { toast('No valid rows imported (need question + gold_answer; check API)', 'err'); return; }
+      await loadCasesFromApi({ silent: true });
       save();
       renderCases(currentCatFilter);
       refreshDashboard();
@@ -2078,7 +2028,7 @@ function showRunResult(r) {
 }
 
 function showCurl() {
-  const url   = (STATE.settings.n8nUrl + STATE.settings.webhookPath).trim() || 'http://localhost:5678/webhook/eval-run';
+  const url   = n8nEvalPostUrl() || 'http://localhost:5678/webhook/eval-run';
   const cat   = document.getElementById('r-cat').value;
   const body  = { run_label: document.getElementById('r-label').value || 'v13-baseline', agent_version: document.getElementById('r-version').value || 'v13', limit: parseInt(document.getElementById('r-limit').value) || 20, ...(cat ? { category: cat } : {}) };
   document.getElementById('curl-code').textContent = `curl -X POST ${url} \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body, null, 2)}'`;
@@ -2193,27 +2143,11 @@ function renderCompare() {
   }).join('');
 }
 
-// ── Copy setup SQL ──
-function copySetupSQL() {
-  const sql = `CREATE SCHEMA IF NOT EXISTS evaluation;\n\nCREATE TABLE IF NOT EXISTS evaluation.auto_test_cases (\n  id          BIGSERIAL PRIMARY KEY,\n  question    TEXT NOT NULL,\n  gold_answer TEXT,\n  intent      VARCHAR(50),\n  category    VARCHAR(80),\n  difficulty  SMALLINT DEFAULT 1,\n  is_active   BOOLEAN NOT NULL DEFAULT TRUE,\n  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),\n  notes       TEXT\n);\n\nCREATE TABLE IF NOT EXISTS evaluation.auto_results (\n  id                  BIGSERIAL PRIMARY KEY,\n  run_id              BIGINT,\n  test_case_id        BIGINT REFERENCES evaluation.auto_test_cases(id),\n  agent_answer        TEXT,\n  score_accuracy      NUMERIC(3,1),\n  score_helpfulness   NUMERIC(3,1),\n  score_safety        NUMERIC(3,1),\n  score_hallucination NUMERIC(3,1),\n  score_overall       NUMERIC(3,1),\n  judge_rationale     TEXT,\n  judge_model         VARCHAR(80),\n  response_ms         INTEGER,\n  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS evaluation.auto_runs (\n  id                BIGSERIAL PRIMARY KEY,\n  run_label         VARCHAR(120),\n  agent_version     VARCHAR(80),\n  total_cases       INTEGER,\n  avg_accuracy      NUMERIC(3,1),\n  avg_helpfulness   NUMERIC(3,1),\n  avg_safety        NUMERIC(3,1),\n  avg_hallucination NUMERIC(3,1),\n  avg_overall       NUMERIC(3,1),\n  pass_rate         NUMERIC(5,2),\n  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()\n);`;
-  navigator.clipboard.writeText(sql).then(() => toast('SQL copied'));
-}
-
 // ── Init ──
 load();
 syncOptionListsUIAfterStateChange();
 refreshAllDynamicSelects();
 rebuildCasesTabs();
-(async () => {
-  if (localStorage.getItem(LS_JWT)) {
-    try {
-      await pullServerState();
-      syncOptionListsUIAfterStateChange();
-      refreshAllDynamicSelects();
-      rebuildCasesTabs();
-    } catch (e) { /* keep local snapshot */ }
-  }
-})();
 applyTheme(STATE.settings.theme === 'light' ? 'light' : 'dark');
 updateConnDot();
 refreshDashboard();

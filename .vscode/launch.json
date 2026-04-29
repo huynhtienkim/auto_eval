@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "API: Uvicorn (BVAB Eval)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--reload", "--host", "127.0.0.1", "--port", "8787"],
+      "cwd": "${workspaceFolder}/server",
+      "envFile": "${workspaceFolder}/server/.env",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Web: HTTP server (repo root)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "http.server",
+      "args": ["5500", "--bind", "127.0.0.1"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "API: Uvicorn (no reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--host", "127.0.0.1", "--port", "8787"],
+      "cwd": "${workspaceFolder}/server",
+      "envFile": "${workspaceFolder}/server/.env",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full stack: API + static web",
+      "configurations": ["API: Uvicorn (BVAB Eval)", "Web: HTTP server (repo root)"],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "",
+        "order": 1
+      }
+    }
+  ]
+}
